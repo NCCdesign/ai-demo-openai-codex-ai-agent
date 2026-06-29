@@ -6,7 +6,7 @@
   "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "pnpm --parallel --filter @aic/server --filter @aic/web dev",
-    "check": "pnpm -r --if-present typecheck && pnpm --filter @aic/core check && pnpm --filter @aic/runtime check && pnpm --filter @aic/server check",
+    "check": "pnpm -r --if-present typecheck && pnpm --filter @aic/core check && pnpm --filter @aic/agents check && pnpm --filter @aic/runtime check && pnpm --filter @aic/server check",
     "build": "pnpm -r --if-present build"
   },
   "devDependencies": {

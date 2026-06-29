@@ -40,6 +40,7 @@ Server/API:
 - Telegram Remote Console rejects non-allowlisted chat IDs.
 - Telegram Remote Console receives outbound runtime status, command status, and log notifications without becoming the recovery source of truth.
 - Agent Stream events are persisted, replayable through REST, broadcast through Socket.IO, and selected stream types can be mirrored to Telegram without duplicating status/log notifications.
+- Codex process output can use provider-native JSONL when configured; Tool Call/Tool Result events must come from structured provider items, not arbitrary terminal text.
 - Socket handshake validates token.
 - Log write and replay works from persistence.
 
@@ -139,6 +140,7 @@ The current phase stops after the scaffold compiles, a core behavior check runs,
 - 2026-06-29: Telegram Remote Console baseline added behind allowlisted long polling: `/status` and `/logs` read persisted runtime/log state, `/continue`, `/pause`, `/resume`, and `/stop` create queued commands with `source = telegram`, and fake-client checks verify unauthorized chats are rejected without calling Agent adapters.
 - 2026-06-29: Telegram outbound sync added for runtime status, command status, and log lines. Fake-client checks verify allowlisted chats receive outbound updates and disabled Telegram sends nothing.
 - 2026-06-29: Structured Agent Stream baseline added: core event contract, SQLite `agent_stream_events`, `AgentStreamService`, `GET /api/sessions/:id/stream`, `agent_stream:event` Socket.IO event, and selected Telegram stream summaries for non-duplicated event types. Server smoke verifies command progress, runtime status, and control logs are replayable from the stream endpoint.
+- 2026-06-29: Codex process adapter maps JSONL stdout into core stream drafts for agent messages, command executions, file changes, plan updates, turn status, and errors. Non-JSON stdout remains a log only. The adapter does not yet default to non-interactive `codex exec --json` because long-running Continue/Pause/Resume still needs a dedicated `exec resume` lifecycle.
 
 ## Current Phase Acceptance
 

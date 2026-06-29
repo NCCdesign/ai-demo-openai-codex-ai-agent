@@ -1,4 +1,4 @@
-import type { AgentRuntimeInstance, AgentStreamEvent, AgentStreamEventType, Command, LogLine } from "@aic/core";
+import type { AgentRuntimeInstance, AgentStreamEvent, AgentStreamEventDraft, AgentStreamEventType, Command, LogLine } from "@aic/core";
 import type { ConsoleRepository } from "@aic/db";
 
 export class AgentStreamService {
@@ -17,6 +17,16 @@ export class AgentStreamService {
     const event = this.repo.appendAgentStreamEvent(input);
     this.onEvent?.(event);
     return event;
+  }
+
+  appendDraft(event: AgentStreamEventDraft): AgentStreamEvent {
+    return this.append({
+      sessionId: event.sessionId,
+      type: event.type,
+      payload: event.payload,
+      commandId: event.commandId,
+      logId: event.logId
+    });
   }
 
   appendLog(log: LogLine): AgentStreamEvent {

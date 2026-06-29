@@ -206,6 +206,14 @@ export interface AgentStreamEvent {
   createdAt: string;
 }
 
+export interface AgentStreamEventDraft {
+  sessionId: string;
+  type: AgentStreamEventType;
+  payload: Record<string, unknown>;
+  commandId?: string | null;
+  logId?: number | null;
+}
+
 export interface FileChange {
   id: string;
   sessionId: string;

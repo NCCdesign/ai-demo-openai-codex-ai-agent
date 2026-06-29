@@ -78,7 +78,7 @@ export async function createServer() {
     });
     notifyTelegram((telegramConsole) => telegramConsole.notifyLogLine(log));
     streams.appendLog(log);
-  });
+  }, (event) => streams.appendDraft(event));
   const commandWorker = new CommandWorker(repo, sessions, (command) => {
     io.to(`session:${command.sessionId}`).emit("command:status_changed", {
       type: "command:status_changed",

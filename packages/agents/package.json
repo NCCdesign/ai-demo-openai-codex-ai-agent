@@ -6,6 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
+    "check": "tsx src/codex-jsonl-stream.check.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -13,7 +14,7 @@
     "@aic/runtime": "workspace:*"
   },
   "devDependencies": {
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
 }
-

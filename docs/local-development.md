@@ -89,7 +89,7 @@ $env:AIC_CODEX_COMMAND = "codex"
 $env:AIC_CODEX_ARGS = ""
 ```
 
-The Codex adapter starts a child process in the workspace path and persists stdout, stderr, process errors, and process exit messages into session logs. If the CLI is missing, the session records a structured error log instead of pretending to run.
+The Codex adapter starts a child process in the workspace path and persists stdout, stderr, process errors, and process exit messages into session logs. When the process emits JSONL stdout, such as from `codex exec --json`, the adapter also maps it into durable Agent Stream events for token/progress/tool/status replay. If the CLI is missing or blocked by the OS, the session records a structured error log instead of pretending to run.
 
 ## Runtime Status
 
@@ -109,7 +109,7 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 ## Agent Stream Replay
 
-Each session also has a durable Agent Stream. It normalizes runtime status, command progress, logs/tokens, and errors for mobile reconnects and remote consoles:
+Each session also has a durable Agent Stream. It normalizes runtime status, command progress, logs/tokens, provider tool events, and errors for mobile reconnects and remote consoles:
 
 ```powershell
 curl.exe -H "Authorization: Bearer <token>" "http://127.0.0.1:4317/api/sessions/<session-id>/stream?cursor=0&limit=200"

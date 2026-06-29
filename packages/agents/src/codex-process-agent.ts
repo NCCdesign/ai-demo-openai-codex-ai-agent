@@ -1,5 +1,6 @@
 import type { AgentAdapter, AgentRuntimeEvent, AgentStatus, StartAgentInput } from "@aic/core";
 import { startProcess, type RunningProcess } from "@aic/runtime";
+import { codexJsonlToStreamEvent } from "./codex-jsonl-stream.js";
 
 export interface CodexProcessAgentOptions {
   command?: string;
@@ -22,7 +23,13 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       command,
       args,
       cwd: input.workspacePath,
-      onStdout: (line) => input.onEvent?.(event(input.sessionId, "stdout", "info", line)),
+      onStdout: (line) => {
+        input.onEvent?.(event(input.sessionId, "stdout", "info", line));
+        const streamEvent = codexJsonlToStreamEvent(input.sessionId, line);
+        if (streamEvent) {
+          input.onStreamEvent?.(streamEvent);
+        }
+      },
       onStderr: (line) => input.onEvent?.(event(input.sessionId, "stderr", "warn", line)),
       onError: (error) => {
         currentStatus = "failed";

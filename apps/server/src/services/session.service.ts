@@ -1,4 +1,4 @@
-import type { AgentRuntimeEvent, CreateMessageRequest, LogLine, Message, Session, SessionStatus } from "@aic/core";
+import type { AgentRuntimeEvent, AgentStreamEventDraft, CreateMessageRequest, LogLine, Message, Session, SessionStatus } from "@aic/core";
 import type { ConsoleRepository } from "@aic/db";
 import { AgentRegistry } from "@aic/agents";
 import type { AgentRuntimeService } from "./agent-runtime.service.js";
@@ -8,7 +8,8 @@ export class SessionService {
     private readonly repo: ConsoleRepository,
     private readonly agents: AgentRegistry,
     private readonly runtimes?: AgentRuntimeService,
-    private readonly onLog?: (log: LogLine) => void
+    private readonly onLog?: (log: LogLine) => void,
+    private readonly onStreamEvent?: (event: AgentStreamEventDraft) => void
   ) {}
 
   async createSession(input: { workspaceId: string; agentId: string; title?: string; userId: string }): Promise<Session> {
@@ -41,6 +42,7 @@ export class SessionService {
         sessionId: session.id,
         workspacePath: workspace.path,
         onEvent: (event) => this.persistAgentEvent(event),
+        onStreamEvent: (event) => this.persistAgentStreamEvent(session.id, event),
         onStatus: (status) => this.updateSessionAndRuntimeStatus(session.id, status)
       });
       this.updateSessionAndRuntimeStatus(session.id, handle.status, { pid: handle.pid ?? null });
@@ -101,6 +103,10 @@ export class SessionService {
     const log = this.repo.appendLog(input);
     this.onLog?.(log);
     return log;
+  }
+
+  private persistAgentStreamEvent(sessionId: string, event: AgentStreamEventDraft): void {
+    this.onStreamEvent?.({ ...event, sessionId });
   }
 
   private updateSessionAndRuntimeStatus(sessionId: string, status: SessionStatus, input: { pid?: number | null; lastError?: string | null } = {}): void {

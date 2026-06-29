@@ -1,10 +1,11 @@
-import type { AgentStatus, LogLevel, LogStream } from "./models.js";
+import type { AgentStatus, AgentStreamEventDraft, LogLevel, LogStream } from "./models.js";
 
 export interface StartAgentInput {
   sessionId: string;
   workspacePath: string;
   initialPrompt?: string;
   onEvent?: (event: AgentRuntimeEvent) => void;
+  onStreamEvent?: (event: AgentStreamEventDraft) => void;
   onStatus?: (status: AgentStatus) => void;
 }
 

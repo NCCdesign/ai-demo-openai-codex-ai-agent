@@ -89,7 +89,7 @@ Stream event types:
 token | tool_call | tool_result | progress | error | status_change
 ```
 
-The current server emits `status_change` from runtime status, `progress` from command lifecycle, and `token`/`error` from persisted logs. `tool_call` and `tool_result` are reserved for concrete provider/tool events and must not be inferred from runtime status alone.
+The current server emits `status_change` from runtime status, `progress` from command lifecycle, and `token`/`error` from persisted logs. Agent adapters may also emit provider-native stream drafts through the core Adapter SPI. The Codex process adapter maps JSONL stdout, such as `codex exec --json`, into stream events. `tool_call` and `tool_result` are reserved for concrete provider/tool events and must not be inferred from runtime status alone.
 
 Session restart is reserved for a later lifecycle policy. MVP supports creating a new session and stopping an existing one.
 

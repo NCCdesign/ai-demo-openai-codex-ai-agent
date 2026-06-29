@@ -83,6 +83,7 @@ Owns:
 
 - Built-in Agent Adapter implementations.
 - Codex-compatible process adapter that starts a CLI child process through `packages/runtime`.
+- Provider-native output normalization. Codex maps JSONL stdout from `codex exec --json` when configured and emits provider events as core stream drafts.
 - No-op/demo adapter for development checks.
 
 Forbidden:
@@ -208,6 +209,7 @@ Agent Stream events:
 AgentRuntimeService status callback
 CommandWorker status callback
 SessionService log callback
+AgentAdapter stream callback
   -> AgentStreamService
   -> agent_stream_events table
   -> agent_stream:event socket event
@@ -215,7 +217,7 @@ SessionService log callback
   -> selected TelegramRemoteConsole stream summary
 ```
 
-`agent_stream_events` is the durable recovery stream for mobile reconnects and remote consoles. It currently normalizes runtime status changes, command progress, logs/tokens, and errors. `tool_call` and `tool_result` are first-class contract values, but built-in adapters must only emit them when they have a concrete tool name/result from the provider; a `tool_calling` runtime status alone remains a `status_change` event. Telegram receives stream summaries only for event types that are not already covered by dedicated runtime/command/log notifications, starting with `tool_call` and `tool_result`.
+`agent_stream_events` is the durable recovery stream for mobile reconnects and remote consoles. It currently normalizes runtime status changes, command progress, logs/tokens, errors, and provider-native stream drafts from Agent adapters. Codex stream drafts come from JSONL stdout such as `codex exec --json`, not from guessing terminal prose. `tool_call` and `tool_result` are first-class contract values, but built-in adapters must only emit them when they have a concrete tool name/result from the provider; a `tool_calling` runtime status alone remains a `status_change` event. Telegram receives stream summaries only for event types that are not already covered by dedicated runtime/command/log notifications, starting with `tool_call` and `tool_result`.
 
 Telegram Remote Console:
 
