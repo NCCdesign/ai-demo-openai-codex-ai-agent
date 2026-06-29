@@ -89,7 +89,15 @@ $env:AIC_CODEX_COMMAND = "codex"
 $env:AIC_CODEX_ARGS = ""
 ```
 
-The Codex adapter starts a child process in the workspace path and persists stdout, stderr, process errors, and process exit messages into session logs. When the process emits JSONL stdout, such as from `codex exec --json`, the adapter also maps it into durable Agent Stream events for token/progress/tool/status replay. If the CLI is missing or blocked by the OS, the session and runtime are marked `failed`, the session records a structured system error log, and the Agent Stream records an error event instead of pretending to run.
+When `AIC_CODEX_COMMAND` is not set, Windows prefers a user-level Codex CLI shim such as `%APPDATA%\npm\codex.cmd` or `%USERPROFILE%\.codex\.sandbox-bin\codex.exe` before falling back to `codex`. This avoids the WindowsApps package-resource `codex.exe` path that can appear in `PATH` but fail with `Access is denied`.
+
+When `AIC_CODEX_ARGS` is empty, Continue commands run:
+
+```text
+codex exec --json --skip-git-repo-check --sandbox workspace-write "<prompt>"
+```
+
+The Codex adapter starts a child process in the workspace path for each queued Continue command and persists stdout, stderr, process errors, and process exit messages into session logs. JSONL stdout is mapped into durable Agent Stream events for token/progress/tool/status replay. If the CLI is missing or blocked by the OS, the session and runtime are marked `failed`, the session records a structured system error log, and the Agent Stream records an error event instead of pretending to run.
 
 ## Runtime Status
 

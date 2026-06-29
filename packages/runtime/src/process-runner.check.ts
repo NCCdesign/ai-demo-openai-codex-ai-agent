@@ -18,8 +18,8 @@ const running = startProcess({
 assert.equal(running.child, null);
 assert.match(running.startError?.message ?? "", /Access is denied/);
 assert.equal(onErrorCalled, false);
-assert.equal(running.pause(), false);
-assert.equal(running.resume(), false);
+assert.equal(running.pause().ok, false);
+assert.equal(running.resume().ok, false);
 
 const stdout = new EventEmitter();
 const stderr = new EventEmitter();
@@ -44,5 +44,16 @@ const started = startProcess({
 
 assert.equal(started.child?.pid, 123);
 assert.equal(started.startError, null);
+
+const live = startProcess({
+  command: process.execPath,
+  args: ["-e", "setInterval(() => {}, 1000)"],
+  cwd: process.cwd()
+});
+assert.ok(live.child?.pid);
+assert.equal(live.startError, null);
+assert.equal(live.pause().ok, true);
+assert.equal(live.resume().ok, true);
+live.stop();
 
 console.log("process runner check passed");

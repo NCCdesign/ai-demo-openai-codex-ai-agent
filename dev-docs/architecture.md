@@ -83,7 +83,7 @@ Owns:
 
 - Built-in Agent Adapter implementations.
 - Codex-compatible process adapter that starts a CLI child process through `packages/runtime`.
-- Provider-native output normalization. Codex maps JSONL stdout from `codex exec --json` when configured and emits provider events as core stream drafts.
+- Provider-native output normalization. Codex uses `codex exec --json` for daemon-safe non-interactive runs and emits provider events as core stream drafts.
 - No-op/demo adapter for development checks.
 
 Forbidden:
@@ -156,7 +156,7 @@ Web / API / Telegram Remote Console command input
   -> Socket.IO broadcasts command/status/log updates
 ```
 
-`agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, `agent.cancel`, and `agent.restart` now execute through the server-side command worker. `agent.pause` and `agent.resume` call explicit `AgentAdapter.pause/resume` methods; they must not be implemented as magic text sent through `sendMessage`. `agent.restart` stops the current provider handle, keeps the same logical Session, clears stale terminal timestamps/errors, starts the adapter again with the persisted workspace/agent identity, and writes the new Runtime status/pid back to SQLite. `agent.screenshot`, `workspace.test.run`, and `workspace.deploy.run` are reserved command types and fail explicitly until their handlers are implemented. HTTP routes must not bypass the queue for new control actions.
+`agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, `agent.cancel`, and `agent.restart` now execute through the server-side command worker. `agent.pause` and `agent.resume` call explicit `AgentAdapter.pause/resume` methods; they must not be implemented as magic text sent through `sendMessage`. The Codex adapter starts a session in `waiting_for_user`, then `agent.continue` launches one non-interactive `codex exec --json` process with the queued prompt. `agent.restart` stops the current provider handle, keeps the same logical Session, clears stale terminal timestamps/errors, starts the adapter again with the persisted workspace/agent identity, and writes the new Runtime status/pid back to SQLite. `agent.screenshot`, `workspace.test.run`, and `workspace.deploy.run` are reserved command types and fail explicitly until their handlers are implemented. HTTP routes must not bypass the queue for new control actions.
 
 The `commands` row is the current execution audit record. It carries `task_id`, normalized `command_text`, `tool_name`, `started_at`, `completed_at`, `duration_ms`, retry/error fields, and `exit_code` when available. This keeps Telegram and mobile recovery views tied to persisted truth instead of transient worker memory. A future `command_attempts` table may be added when real multi-attempt retry semantics are implemented.
 
@@ -205,9 +205,9 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 The current heartbeat is a local-daemon liveness baseline, not automatic supervisor recovery. Recovery policy is persisted as `manual`; operators can enqueue `agent.restart` to restart the same logical Session after a failure or stale-runtime reconciliation, while unattended auto-restart policy remains future work. On daemon start, `AgentRuntimeService` reconciles stale active runtime rows whose heartbeat is older than the configured threshold by marking them `failed` with a manual-recovery error. This prevents mobile and Telegram clients from seeing ghost running sessions after a daemon restart. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
 
-Agent process startup must not create fake running state. `packages/runtime.startProcess` returns a structured `startError` when spawn fails before a child exists. The Codex adapter maps that to a failed Agent handle, system error log, and durable `agent_stream_events` error. `SessionService` then persists session/runtime status as `failed`, so Telegram and Web recovery paths show the unavailable reason instead of a running process that never existed.
+Agent process startup must not create fake running state. `packages/runtime.startProcess` returns a structured `startError` when spawn fails before a child exists. The Codex adapter maps that to a failed command, system error log, and durable `agent_stream_events` error. `SessionService` then persists session/runtime status as `failed`, so Telegram and Web recovery paths show the unavailable reason instead of a running process that never existed. On Windows, the adapter avoids `WindowsApps` package resource paths when a user-level Codex CLI exists under the npm shim or `$HOME/.codex/.sandbox-bin/codex.exe`, because the package resource path can be discoverable in `PATH` but fail with `Access is denied`.
 
-The Codex process adapter now exposes explicit pause/resume controls through the shared Adapter SPI. On Unix-like hosts this uses `SIGSTOP`/`SIGCONT` through `packages/runtime`; on Windows the process runner currently returns a structured unsupported result, so the command fails instead of pretending the process paused. A Windows-safe process-tree pause/resume strategy or Codex-native `exec resume` lifecycle is still required before claiming full live Codex pause/resume readiness on Windows.
+The Codex process adapter now exposes explicit pause/resume controls through the shared Adapter SPI. On Unix-like hosts this uses `SIGSTOP`/`SIGCONT` through `packages/runtime`; on Windows the process runner uses a PowerShell-hosted Win32 thread suspend/resume operation over the child process tree and returns structured errors when that control fails. Codex-native `exec resume` remains the future upgrade path for multi-turn continuity beyond one `codex exec --json` run per Continue command.
 
 Agent Stream events:
 
