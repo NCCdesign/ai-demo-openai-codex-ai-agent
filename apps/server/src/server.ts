@@ -399,6 +399,7 @@ export async function createServer() {
       telegram?.stop();
       runtimes.stopHeartbeat();
       commandWorker.stop();
+      await sessions.shutdown();
       await app.close();
       db.close();
     }

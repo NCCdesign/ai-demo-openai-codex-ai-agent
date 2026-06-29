@@ -55,7 +55,10 @@ try {
     { updateId: 1, message: { chat: { id: 999 }, text: "/status" } },
     { updateId: 2, message: { chat: { id: 123 }, text: "/status" } },
     { updateId: 3, message: { chat: { id: 123 }, text: "/logs" } },
-    { updateId: 4, message: { chat: { id: 123 }, text: "/pause" } }
+    { updateId: 4, message: { chat: { id: 123 }, text: "/continue keep going" } },
+    { updateId: 5, message: { chat: { id: 123 }, text: "/pause" } },
+    { updateId: 6, message: { chat: { id: 123 }, text: "/resume" } },
+    { updateId: 7, message: { chat: { id: 123 }, text: "/stop" } }
   ]);
   const telegram = new TelegramRemoteConsole(
     {
@@ -73,9 +76,23 @@ try {
   assert.match(client.sent[0]?.text ?? "", /未授权/);
   assert.match(client.sent[1]?.text ?? "", /状态: running/);
   assert.match(client.sent[2]?.text ?? "", /Tool call: git status/);
-  assert.match(client.sent[3]?.text ?? "", /已入队: agent.pause/);
-  assert.equal(repo.findCommand(createdCommands[0] ?? "")?.source, "telegram");
+  assert.match(client.sent[3]?.text ?? "", /已入队: agent.continue/);
+  assert.match(client.sent[4]?.text ?? "", /已入队: agent.pause/);
+  assert.match(client.sent[5]?.text ?? "", /已入队: agent.resume/);
+  assert.match(client.sent[6]?.text ?? "", /已入队: agent.stop/);
+  assert.deepEqual(
+    createdCommands.map((commandId) => repo.findCommand(commandId)?.type),
+    ["agent.continue", "agent.pause", "agent.resume", "agent.stop"]
+  );
+  assert.deepEqual(
+    createdCommands.map((commandId) => repo.findCommand(commandId)?.source),
+    ["telegram", "telegram", "telegram", "telegram"]
+  );
+  assert.equal(repo.findCommand(createdCommands[0] ?? "")?.payload.text, "keep going");
   assert.equal(commandTypeForTelegramText("/continue hello"), "agent.continue");
+  assert.equal(commandTypeForTelegramText("/pause"), "agent.pause");
+  assert.equal(commandTypeForTelegramText("/resume"), "agent.resume");
+  assert.equal(commandTypeForTelegramText("/stop"), "agent.stop");
   assert.equal(commandTypeForTelegramText("/unknown"), null);
 
   await telegram.notifyLogLine({ id: 99, sessionId: session.id, stream: "stdout", level: "info", line: "hello", createdAt: new Date().toISOString() });

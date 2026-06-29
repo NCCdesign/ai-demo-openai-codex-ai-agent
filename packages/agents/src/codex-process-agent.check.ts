@@ -20,7 +20,8 @@ try {
       return {
         child: null,
         startError: new Error("Access is denied"),
-        stop: () => undefined,
+        exited: Promise.resolve(),
+        stop: () => ({ ok: true }),
         pause: () => ({ ok: false }),
         resume: () => ({ ok: false }),
         write: () => undefined
@@ -46,19 +47,9 @@ try {
   assert.match(events.join("\n"), /Codex process unavailable/);
   assert.match(streamEvents.join("\n"), /error: Codex process unavailable/);
 
-  const child = new EventEmitter() as EventEmitter & {
-    stdout: EventEmitter & { setEncoding: (encoding: string) => void };
-    stderr: EventEmitter & { setEncoding: (encoding: string) => void };
-    stdin: { write: (value: string) => boolean };
-    kill: (signal: string) => boolean;
-    pid: number;
-  };
-  child.stdout = Object.assign(new EventEmitter(), { setEncoding: () => undefined });
-  child.stderr = Object.assign(new EventEmitter(), { setEncoding: () => undefined });
-  child.stdin = { write: () => true };
-  child.kill = () => true;
-  child.pid = 234;
+  const child = fakeChild(234);
   const completedStatuses: string[] = [];
+  const completedPids: Array<number | null | undefined> = [];
   const completedSpawnInputs: Array<{ args: string[] }> = [];
   const completedAdapter = new CodexProcessAgentAdapter({
     command: "codex",
@@ -72,7 +63,8 @@ try {
       return {
         child,
         startError: null,
-        stop: () => undefined,
+        exited: Promise.resolve(),
+        stop: () => ({ ok: true }),
         pause: () => ({ ok: true }),
         resume: () => ({ ok: true }),
         write: () => undefined
@@ -82,7 +74,10 @@ try {
   await completedAdapter.start({
     sessionId: "ses_completed",
     workspacePath: root,
-    onStatus: (status) => completedStatuses.push(status)
+    onStatus: (status, metadata) => {
+      completedStatuses.push(status);
+      completedPids.push(metadata?.pid);
+    }
   });
   await completedAdapter.sendMessage("ses_completed", "Continue");
   assert.equal(await completedAdapter.getStatus("ses_completed"), "running");
@@ -92,6 +87,75 @@ try {
   assert.deepEqual(completedSpawnInputs[1]?.args, ["exec", "resume", "--json", "--skip-git-repo-check", "thread_check", "Continue again"]);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(completedStatuses, ["waiting_for_user", "running", "completed", "running", "completed"]);
+  assert.deepEqual(completedPids, [undefined, 234, null, 234, null]);
+
+  let paused = 0;
+  let resumed = 0;
+  let stopped = 0;
+  const controlStatuses: string[] = [];
+  const controlAdapter = new CodexProcessAgentAdapter({
+    command: "codex",
+    startProcess: ((input: ProcessRunnerInput) => {
+      let resolveExited!: () => void;
+      const exited = new Promise<void>((resolve) => {
+        resolveExited = resolve;
+      });
+      return {
+        child: fakeChild(345),
+        startError: null,
+        exited,
+        stop: () => {
+          stopped += 1;
+          input.onExit?.(null, "SIGTERM");
+          resolveExited();
+          return { ok: true };
+        },
+        pause: () => {
+          paused += 1;
+          return { ok: true };
+        },
+        resume: () => {
+          resumed += 1;
+          return { ok: true };
+        },
+        write: () => undefined
+      };
+    }) as unknown as typeof startProcess
+  });
+  await controlAdapter.start({
+    sessionId: "ses_control",
+    workspacePath: root,
+    onStatus: (status) => controlStatuses.push(status)
+  });
+  await controlAdapter.sendMessage("ses_control", "Run a long task");
+  assert.equal(await controlAdapter.getStatus("ses_control"), "running");
+  await controlAdapter.pause("ses_control");
+  assert.equal(paused, 1);
+  assert.equal(await controlAdapter.getStatus("ses_control"), "waiting_for_user");
+  await controlAdapter.resume("ses_control");
+  assert.equal(resumed, 1);
+  assert.equal(await controlAdapter.getStatus("ses_control"), "running");
+  await controlAdapter.stop("ses_control");
+  assert.equal(stopped, 1);
+  assert.equal(await controlAdapter.getStatus("ses_control"), "stopped");
+  assert.deepEqual(controlStatuses, ["waiting_for_user", "running", "stopped"]);
+
+  const failingStopAdapter = new CodexProcessAgentAdapter({
+    command: "codex",
+    startProcess: (() => ({
+      child: fakeChild(456),
+      startError: null,
+      exited: Promise.resolve(),
+      stop: () => ({ ok: false, error: "stop failed" }),
+      pause: () => ({ ok: true }),
+      resume: () => ({ ok: true }),
+      write: () => undefined
+    })) as unknown as typeof startProcess
+  });
+  await failingStopAdapter.start({ sessionId: "ses_stop_failed", workspacePath: root });
+  await failingStopAdapter.sendMessage("ses_stop_failed", "Run");
+  await assert.rejects(() => failingStopAdapter.stop("ses_stop_failed"), /stop failed/);
+  assert.equal(await failingStopAdapter.getStatus("ses_stop_failed"), "running");
 
   if (process.platform === "win32") {
     assert.doesNotMatch(resolveDefaultCodexCommand(), /\\WindowsApps\\/i);
@@ -100,4 +164,20 @@ try {
   console.log("codex process adapter check passed");
 } finally {
   rmSync(root, { recursive: true, force: true });
+}
+
+function fakeChild(pid: number) {
+  const child = new EventEmitter() as EventEmitter & {
+    stdout: EventEmitter & { setEncoding: (encoding: string) => void };
+    stderr: EventEmitter & { setEncoding: (encoding: string) => void };
+    stdin: { write: (value: string) => boolean };
+    kill: (signal: string) => boolean;
+    pid: number;
+  };
+  child.stdout = Object.assign(new EventEmitter(), { setEncoding: () => undefined });
+  child.stderr = Object.assign(new EventEmitter(), { setEncoding: () => undefined });
+  child.stdin = { write: () => true };
+  child.kill = () => true;
+  child.pid = pid;
+  return child;
 }

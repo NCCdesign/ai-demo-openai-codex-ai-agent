@@ -22,7 +22,8 @@ export interface ProcessControlResult {
 export interface RunningProcess {
   child: ChildProcessWithoutNullStreams | null;
   startError: Error | null;
-  stop: () => void;
+  exited: Promise<void>;
+  stop: () => ProcessControlResult;
   pause: () => ProcessControlResult;
   resume: () => ProcessControlResult;
   write: (input: string) => void;
@@ -40,7 +41,8 @@ export function startProcess(input: ProcessRunnerInput): RunningProcess {
     return {
       child: null,
       startError: error instanceof Error ? error : new Error(String(error)),
-      stop: () => undefined,
+      exited: Promise.resolve(),
+      stop: () => ({ ok: false, error: "Process did not start." }),
       pause: () => ({ ok: false, error: "Process did not start." }),
       resume: () => ({ ok: false, error: "Process did not start." }),
       write: () => undefined
@@ -50,10 +52,17 @@ export function startProcess(input: ProcessRunnerInput): RunningProcess {
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
 
+  let resolveExited!: () => void;
+  const exited = new Promise<void>((resolve) => {
+    resolveExited = resolve;
+  });
   child.stdout.on("data", (chunk) => splitLines(chunk, input.onStdout));
   child.stderr.on("data", (chunk) => splitLines(chunk, input.onStderr));
   child.on("error", (error) => input.onError?.(error));
   child.on("exit", (code, signal) => input.onExit?.(code, signal));
+  child.on("close", () => {
+    resolveExited();
+  });
   if (input.closeStdin) {
     child.stdin.end();
   }
@@ -61,11 +70,22 @@ export function startProcess(input: ProcessRunnerInput): RunningProcess {
   return {
     child,
     startError: null,
-    stop: () => child.kill("SIGTERM"),
+    exited,
+    stop: () => stopProcess(child),
     pause: () => pauseProcess(child),
     resume: () => resumeProcess(child),
     write: (value) => child.stdin.write(value)
   };
+}
+
+function stopProcess(child: ChildProcessWithoutNullStreams): ProcessControlResult {
+  if (!child.pid) {
+    return { ok: false, error: "Process pid is unavailable." };
+  }
+  if (process.platform !== "win32") {
+    return { ok: child.kill("SIGTERM") };
+  }
+  return stopWindowsProcessTree(child.pid);
 }
 
 function pauseProcess(child: ChildProcessWithoutNullStreams): ProcessControlResult {
@@ -86,6 +106,55 @@ function resumeProcess(child: ChildProcessWithoutNullStreams): ProcessControlRes
     return { ok: child.kill("SIGCONT") };
   }
   return runWindowsThreadControl(child.pid, "Resume");
+}
+
+function stopWindowsProcessTree(pid: number): ProcessControlResult {
+  const script = `
+$ErrorActionPreference = 'Stop'
+Get-Process -Id ${pid} | Out-Null
+$all = Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId
+$queue = New-Object 'System.Collections.Generic.Queue[int]'
+$pids = New-Object 'System.Collections.Generic.List[int]'
+$queue.Enqueue(${pid})
+while ($queue.Count -gt 0) {
+  $current = $queue.Dequeue()
+  $pids.Add($current)
+  foreach ($child in $all | Where-Object { $_.ParentProcessId -eq $current }) {
+    $queue.Enqueue([int]$child.ProcessId)
+  }
+}
+$targets = $pids.ToArray()
+[array]::Reverse($targets)
+foreach ($target in $targets) {
+  try {
+    Stop-Process -Id $target -Force -ErrorAction Stop
+  } catch {
+    if ($target -eq ${pid}) {
+      throw
+    }
+  }
+}
+`;
+  try {
+    execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        script
+      ],
+      { windowsHide: true, stdio: "pipe" }
+    );
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: processControlError(error)
+    };
+  }
 }
 
 function runWindowsThreadControl(pid: number, method: "Suspend" | "Resume"): ProcessControlResult {
@@ -172,9 +241,34 @@ foreach ($target in $targets) {
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: processControlError(error)
     };
   }
+}
+
+function processControlError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+  const details: string[] = [error.message];
+  const maybeOutput = error as Error & { stdout?: Buffer | string; stderr?: Buffer | string };
+  const stderr = outputText(maybeOutput.stderr);
+  const stdout = outputText(maybeOutput.stdout);
+  if (stderr) {
+    details.push(stderr);
+  }
+  if (stdout) {
+    details.push(stdout);
+  }
+  return details.join("\n").trim();
+}
+
+function outputText(value: Buffer | string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const text = Buffer.isBuffer(value) ? value.toString("utf8") : value;
+  return text.trim() || null;
 }
 
 function splitLines(chunk: string, onLine?: (line: string) => void): void {

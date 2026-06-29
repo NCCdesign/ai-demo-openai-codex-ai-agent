@@ -32,7 +32,8 @@ export class AgentRuntimeService {
   syncSessionStatus(sessionId: string, status: SessionStatus, input: { pid?: number | null; lastError?: string | null } = {}): AgentRuntimeInstance | null {
     const current = this.repo.findAgentRuntimeBySession(sessionId);
     const runtimeStatus = mapSessionStatusToRuntimeStatus(status);
-    const updated = this.repo.updateAgentRuntimeStatus(sessionId, runtimeStatus, input);
+    const terminalInput = ["completed", "failed", "cancelled"].includes(runtimeStatus) && input.pid === undefined ? { ...input, pid: null } : input;
+    const updated = this.repo.updateAgentRuntimeStatus(sessionId, runtimeStatus, terminalInput);
     if (updated && current?.status !== updated.status) {
       this.onStatusChanged?.(updated);
     }

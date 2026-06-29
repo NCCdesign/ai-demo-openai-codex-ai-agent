@@ -45,6 +45,7 @@ try {
 
   const running = runtimes.syncSessionStatus(session.id, "running");
   assert.equal(running?.status, "running");
+  assert.equal(running?.pid, 123);
   assert.deepEqual(statusEvents, ["running"]);
 
   const repeated = runtimes.syncSessionStatus(session.id, "running");
@@ -53,6 +54,7 @@ try {
 
   const stopped = runtimes.syncSessionStatus(session.id, "stopped");
   assert.equal(stopped?.status, "cancelled");
+  assert.equal(stopped?.pid, null);
   assert.ok(stopped?.stoppedAt);
   assert.deepEqual(statusEvents, ["running", "cancelled"]);
   assert.equal(runtimes.listActive().length, 0);

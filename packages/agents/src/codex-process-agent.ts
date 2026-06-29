@@ -99,7 +99,7 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
         const current = this.sessions.get(sessionId);
         if (current?.process === running) {
           current.status = "failed";
-          this.emitStatus(sessionId, "failed");
+          this.emitStatus(sessionId, "failed", { pid: null });
           this.emitEvent(sessionId, "system", "error", `Codex process error: ${error.message}`);
         }
       },
@@ -111,19 +111,16 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
         const status: AgentStatus = current.stopping ? "stopped" : code === 0 ? "completed" : "failed";
         current.status = status;
         current.process = null;
-        this.emitStatus(sessionId, status);
+        this.emitStatus(sessionId, status, { pid: null });
         this.emitEvent(sessionId, "system", code === 0 ? "info" : "error", `Codex process exited with code ${code ?? "null"} signal ${signal ?? "null"}`);
       }
     });
-
-    session.process = running;
-    this.emitStatus(sessionId, "running");
 
     if (!running.child) {
       const message = running.startError?.message ?? "Codex process did not start.";
       session.status = "failed";
       session.process = null;
-      this.emitStatus(sessionId, "failed");
+      this.emitStatus(sessionId, "failed", { pid: null });
       this.emitEvent(sessionId, "system", "error", `Codex process unavailable: ${message}`);
       this.emitStreamEvent(sessionId, {
         sessionId,
@@ -137,6 +134,9 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       });
       throw new Error(`Codex process unavailable: ${message}`);
     }
+
+    session.process = running;
+    this.emitStatus(sessionId, "running", { pid: running.child.pid ?? null });
   }
 
   async pause(sessionId: string): Promise<void> {
@@ -162,9 +162,16 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
     if (!session?.process) {
       return;
     }
+    const process = session.process;
     session.status = "stopping";
     session.stopping = true;
-    session.process.stop();
+    const stopped = process.stop();
+    if (!stopped.ok) {
+      session.status = "running";
+      session.stopping = false;
+      throw new Error(stopped.error ?? "Codex process stop failed.");
+    }
+    await process.exited;
   }
 
   async getStatus(sessionId: string): Promise<AgentStatus> {
@@ -187,8 +194,8 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
     return session as RunningCodexProcessSession;
   }
 
-  private emitStatus(sessionId: string, status: AgentStatus): void {
-    this.sessions.get(sessionId)?.onStatus?.(status);
+  private emitStatus(sessionId: string, status: AgentStatus, metadata: { pid?: number | null; lastError?: string | null } = {}): void {
+    this.sessions.get(sessionId)?.onStatus?.(status, metadata);
   }
 
   private emitEvent(sessionId: string, stream: AgentRuntimeEvent["stream"], level: AgentRuntimeEvent["level"], line: string): void {

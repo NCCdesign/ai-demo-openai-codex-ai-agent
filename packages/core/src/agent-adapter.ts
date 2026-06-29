@@ -6,7 +6,7 @@ export interface StartAgentInput {
   initialPrompt?: string;
   onEvent?: (event: AgentRuntimeEvent) => void;
   onStreamEvent?: (event: AgentStreamEventDraft) => void;
-  onStatus?: (status: AgentStatus) => void;
+  onStatus?: (status: AgentStatus, metadata?: AgentStatusMetadata) => void;
 }
 
 export interface AgentRuntimeEvent {
@@ -20,6 +20,11 @@ export interface AgentRuntimeEvent {
 export interface AgentSessionHandle {
   sessionId: string;
   status: AgentStatus;
+  pid?: number | null;
+  lastError?: string | null;
+}
+
+export interface AgentStatusMetadata {
   pid?: number | null;
   lastError?: string | null;
 }

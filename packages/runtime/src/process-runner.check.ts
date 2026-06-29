@@ -17,7 +17,9 @@ const running = startProcess({
 
 assert.equal(running.child, null);
 assert.match(running.startError?.message ?? "", /Access is denied/);
+await running.exited;
 assert.equal(onErrorCalled, false);
+assert.equal(running.stop().ok, false);
 assert.equal(running.pause().ok, false);
 assert.equal(running.resume().ok, false);
 
@@ -54,6 +56,43 @@ assert.ok(live.child?.pid);
 assert.equal(live.startError, null);
 assert.equal(live.pause().ok, true);
 assert.equal(live.resume().ok, true);
-live.stop();
+assert.equal(live.stop().ok, true);
+await live.exited;
+
+if (process.platform === "win32") {
+  let childPid: number | null = null;
+  const tree = startProcess({
+    command: process.execPath,
+    args: [
+      "-e",
+      "const { spawn } = require('node:child_process'); const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); console.log(child.pid); setInterval(() => {}, 1000)"
+    ],
+    cwd: process.cwd(),
+    onStdout: (line) => {
+      childPid = Number(line);
+    }
+  });
+  const parentPid = tree.child?.pid;
+  assert.ok(parentPid);
+  assert.equal(tree.startError, null);
+  for (let attempt = 0; attempt < 20 && !childPid; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.ok(childPid);
+  assert.equal(tree.stop().ok, true);
+  await tree.exited;
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  assert.equal(isWindowsProcessRunning(parentPid), false);
+  assert.equal(isWindowsProcessRunning(childPid), false);
+}
 
 console.log("process runner check passed");
+
+function isWindowsProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}

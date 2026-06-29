@@ -63,6 +63,8 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 This route is the current read path for future Telegram status views. It reads SQLite state; it does not inspect adapter memory.
 
+When an adapter starts or resumes a concrete child process, the Runtime row should expose the current `pid` when available. Terminal runtime states (`completed`, `failed`, `cancelled`) clear `pid`; clients must not display stale process ids as active work.
+
 `GET /api/sessions/:id/stream` returns durable Agent Stream events for reconnect/replay. It uses the event row `id` as cursor and returns:
 
 ```json
@@ -136,7 +138,7 @@ Request:
 }
 ```
 
-This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, `agent.cancel`, and `agent.restart`, then emits `command:status_changed`. `agent.pause` and `agent.resume` use provider-neutral Adapter SPI methods, not text prompts sent through `sendMessage`. For Codex, the first `agent.continue` starts a non-interactive `codex exec --json` run with the queued prompt; stdout JSONL becomes durable Agent Stream events. After a `thread.started` event, later Continue commands use `codex exec resume --json` with the provider thread id while the server daemon remains alive. `agent.restart` restarts the same logical Session rather than creating a new conversation. Reserved command types without handlers fail explicitly instead of pretending to run.
+This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, `agent.cancel`, and `agent.restart`, then emits `command:status_changed`. `agent.pause`, `agent.resume`, and `agent.stop` use provider-neutral Adapter SPI methods, not text prompts sent through `sendMessage`. For Codex, the first `agent.continue` starts a non-interactive `codex exec --json` run with the queued prompt; stdout JSONL becomes durable Agent Stream events and the runtime row receives the process `pid` when available. After a `thread.started` event, later Continue commands use `codex exec resume --json` with the provider thread id while the server daemon remains alive. `agent.stop` waits for the controlled process to exit and clears the runtime `pid` on terminal state. `agent.restart` restarts the same logical Session rather than creating a new conversation. Reserved command types without handlers fail explicitly instead of pretending to run.
 
 Command responses include the execution audit fields needed for remote operation:
 

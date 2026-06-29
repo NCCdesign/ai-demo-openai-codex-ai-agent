@@ -101,6 +101,8 @@ The Codex adapter starts a child process in the workspace path for each queued C
 
 After the first Codex run emits `thread.started`, later Continue commands in the same server process use `codex exec resume --json <thread_id> "<prompt>"`. This keeps the Agent conversation context across turns without running the interactive TUI inside the server daemon. Provider thread identity is not persisted across daemon restarts yet.
 
+Pause, resume, and stop are process controls behind the shared Agent Adapter SPI. On Windows, pause/resume operate on the child process tree through Win32 thread suspend/resume, and stop terminates the process tree before the command completes. Server shutdown also stops daemon-owned Agent sessions before closing SQLite, so late provider output does not write into a closed database.
+
 ## Runtime Status
 
 Each started session now has a persisted Agent Runtime instance. After creating a session, query it with:
@@ -116,6 +118,8 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 ```
 
 `heartbeatAt` is updated by the local daemon while the runtime is active. On server start, stale active runtime rows are marked `failed` with a manual-recovery error instead of staying as ghost running sessions. Operators can enqueue `agent.restart` through the Command Queue to restart the same logical session from persisted workspace/agent identity. Full unattended supervisor auto-restart is not implemented yet.
+
+When an adapter reports a process id, active Runtime rows expose it as `pid`. Terminal states clear `pid` to `null`; remote views should treat a non-null `pid` as current liveness metadata, not historical audit data.
 
 ## Agent Stream Replay
 

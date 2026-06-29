@@ -65,6 +65,23 @@ try {
     title: "Worker check"
   });
 
+  const continued = commands.createCommand({
+    type: "agent.continue",
+    sessionId: session.id,
+    source: "api",
+    userId: "usr_admin",
+    payload: { text: "Run the queued task" }
+  });
+  await worker.processQueued();
+  const completedContinue = repo.findCommand(continued.id);
+  assert.equal(completedContinue?.status, "completed");
+  assert.equal(completedContinue?.commandText, "Run the queued task");
+  assert.equal(completedContinue?.toolName, "agent");
+  assert.notEqual(completedContinue?.durationMs, null);
+  assert.equal(repo.findSession(session.id)?.status, "running");
+  assert.equal(repo.findAgentRuntimeBySession(session.id)?.status, "running");
+  assert.deepEqual(adapter.calls, ["start", "sendMessage"]);
+
   const pause = commands.createCommand({ type: "agent.pause", sessionId: session.id, source: "api", userId: "usr_admin" });
   await worker.processQueued();
   const completedPause = repo.findCommand(pause.id);
@@ -73,19 +90,22 @@ try {
   assert.ok(completedPause?.completedAt);
   assert.notEqual(completedPause?.durationMs, null);
   assert.equal(repo.findSession(session.id)?.status, "waiting_for_user");
-  assert.deepEqual(adapter.calls, ["start", "pause"]);
+  assert.equal(repo.findAgentRuntimeBySession(session.id)?.status, "waiting");
+  assert.deepEqual(adapter.calls, ["start", "sendMessage", "pause"]);
 
   const resume = commands.createCommand({ type: "agent.resume", sessionId: session.id, source: "api", userId: "usr_admin" });
   await worker.processQueued();
   assert.equal(repo.findCommand(resume.id)?.status, "completed");
   assert.equal(repo.findSession(session.id)?.status, "running");
-  assert.deepEqual(adapter.calls, ["start", "pause", "resume"]);
+  assert.equal(repo.findAgentRuntimeBySession(session.id)?.status, "running");
+  assert.deepEqual(adapter.calls, ["start", "sendMessage", "pause", "resume"]);
 
   const stop = commands.createCommand({ type: "agent.stop", sessionId: session.id, source: "api", userId: "usr_admin" });
   await worker.processQueued();
   assert.equal(repo.findCommand(stop.id)?.status, "completed");
   assert.equal(repo.findSession(session.id)?.status, "stopped");
-  assert.deepEqual(adapter.calls, ["start", "pause", "resume", "stop"]);
+  assert.equal(repo.findAgentRuntimeBySession(session.id)?.status, "cancelled");
+  assert.deepEqual(adapter.calls, ["start", "sendMessage", "pause", "resume", "stop"]);
 
   const screenshot = commands.createCommand({ type: "agent.screenshot", sessionId: session.id, source: "api", userId: "usr_admin" });
   await worker.processQueued();
@@ -105,7 +125,7 @@ try {
   await worker.processQueued();
   const completedRestart = repo.findCommand(restart.id);
   assert.equal(completedRestart?.status, "completed");
-  assert.deepEqual(adapter.calls, ["start", "pause", "resume", "stop", "stop", "start"]);
+  assert.deepEqual(adapter.calls, ["start", "sendMessage", "pause", "resume", "stop", "stop", "start"]);
   const restartedSession = repo.findSession(session.id);
   assert.equal(restartedSession?.status, "waiting_for_user");
   assert.equal(restartedSession?.lastError, null);
@@ -116,6 +136,12 @@ try {
   assert.equal(restartedRuntime?.stoppedAt, null);
   assert.equal(restartedRuntime?.pid, 1001);
   assert.match(repo.exportLogsText(session.id), /restarting/);
+
+  await sessions.shutdown();
+  assert.deepEqual(adapter.calls, ["start", "sendMessage", "pause", "resume", "stop", "stop", "start", "stop"]);
+  assert.equal(repo.findSession(session.id)?.status, "stopped");
+  assert.equal(repo.findAgentRuntimeBySession(session.id)?.status, "cancelled");
+  assert.equal(repo.findAgentRuntimeBySession(session.id)?.pid, null);
 
   console.log("command worker check passed");
 } finally {

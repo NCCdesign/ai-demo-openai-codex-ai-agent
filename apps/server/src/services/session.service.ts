@@ -4,6 +4,8 @@ import { AgentRegistry } from "@aic/agents";
 import type { AgentRuntimeService } from "./agent-runtime.service.js";
 
 export class SessionService {
+  private readonly ownedSessionIds = new Set<string>();
+
   constructor(
     private readonly repo: ConsoleRepository,
     private readonly agents: AgentRegistry,
@@ -43,8 +45,9 @@ export class SessionService {
         workspacePath: workspace.path,
         onEvent: (event) => this.persistAgentEvent(event),
         onStreamEvent: (event) => this.persistAgentStreamEvent(session.id, event),
-        onStatus: (status) => this.updateSessionAndRuntimeStatus(session.id, status)
+        onStatus: (status, metadata) => this.updateSessionAndRuntimeStatus(session.id, status, metadata)
       });
+      this.ownedSessionIds.add(session.id);
       this.updateSessionAndRuntimeStatus(session.id, handle.status, { pid: handle.pid ?? null, lastError: handle.lastError });
       return { ...session, status: handle.status };
     } catch (error) {
@@ -93,8 +96,9 @@ export class SessionService {
         workspacePath: workspace.path,
         onEvent: (event) => this.persistAgentEvent(event),
         onStreamEvent: (event) => this.persistAgentStreamEvent(session.id, event),
-        onStatus: (status) => this.updateSessionAndRuntimeStatus(session.id, status)
+        onStatus: (status, metadata) => this.updateSessionAndRuntimeStatus(session.id, status, metadata)
       });
+      this.ownedSessionIds.add(session.id);
       this.updateSessionAndRuntimeStatus(session.id, handle.status, {
         pid: handle.pid ?? null,
         lastError: handle.lastError ?? (handle.status === "failed" ? undefined : null)
@@ -106,6 +110,29 @@ export class SessionService {
         lastError: error instanceof Error ? error.message : String(error)
       });
       throw error;
+    }
+  }
+
+  async shutdown(): Promise<void> {
+    const sessionIds = [...this.ownedSessionIds];
+    for (const sessionId of sessionIds) {
+      const session = this.repo.findSession(sessionId);
+      if (!session) {
+        this.ownedSessionIds.delete(sessionId);
+        continue;
+      }
+      try {
+        const agent = this.requireAgent(session.agentId);
+        await this.agents.get(agent.type).stop(sessionId);
+        this.updateSessionAndRuntimeStatus(sessionId, "stopped", { pid: null });
+      } catch (error) {
+        this.updateSessionAndRuntimeStatus(sessionId, "failed", {
+          pid: null,
+          lastError: error instanceof Error ? error.message : String(error)
+        });
+      } finally {
+        this.ownedSessionIds.delete(sessionId);
+      }
     }
   }
 
@@ -175,6 +202,9 @@ export class SessionService {
   private updateSessionAndRuntimeStatus(sessionId: string, status: SessionStatus, input: { pid?: number | null; lastError?: string | null } = {}): void {
     this.repo.updateSessionStatus(sessionId, status, input.lastError);
     this.runtimes?.syncSessionStatus(sessionId, status, input);
+    if (["stopped", "failed", "completed"].includes(status)) {
+      this.ownedSessionIds.delete(sessionId);
+    }
   }
 
   private requireSession(sessionId: string): Session {
