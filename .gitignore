@@ -8,6 +8,7 @@ outputs/
 work/
 data/*.sqlite
 data/*.sqlite-*
+data/*.log
 **/data/*.sqlite
 **/data/*.sqlite-*
 data/artifacts/
