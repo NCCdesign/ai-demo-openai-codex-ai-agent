@@ -1,8 +1,8 @@
-# AI Agent Console Architecture
+# NCC AI Development OS Architecture
 
 ## Decision
 
-Use one single recommended architecture: a Next.js PWA front end talks to a separate local Node daemon over REST and Socket.IO. The daemon owns long-running Agent sessions, persistence, logs, screenshots, notifications, and local runtime integration.
+Use one single recommended architecture: a Next.js PWA front end talks to a separate local Node daemon over REST and Socket.IO. The daemon owns long-running Agent sessions, persistence, logs, screenshots, notifications, local runtime integration, and future workflow/plugin orchestration for **NCC AI Development OS**.
 
 This is intentionally not a menu of equal options. Running Agent control inside Next.js API routes is rejected because UI hosting and process orchestration have different lifecycles.
 
@@ -177,7 +177,7 @@ session.agentId
   -> AgentAdapter
 ```
 
-No HTTP route or UI component is allowed to special-case Codex. Codex is one adapter behind the shared SPI.
+No HTTP route or UI component is allowed to special-case Codex. Codex is one Agent Provider behind the shared SPI, not the product boundary.
 
 Log replay:
 

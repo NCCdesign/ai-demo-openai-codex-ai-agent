@@ -1,12 +1,12 @@
-# AI Agent Console Project Initiation
+# NCC AI Development OS Project Initiation
 
 ## 1. Product Definition
 
-AI Agent Console is a local-first web/PWA control console for long-running AI development agents. It lets the operator inspect task state, chat with the active agent, watch logs, inspect file diffs, view screenshots, and receive future notifications from a phone or desktop browser without using remote desktop.
+**NCC AI Development OS** (`NCC AI OS`) is a local-first web/PWA operating system for long-running AI development work. It lets the operator inspect task state, chat with the active agent, watch logs, inspect file diffs, view screenshots, and receive future notifications from a phone or desktop browser without using remote desktop.
 
-Target operator: one developer who keeps OpenAI Codex or other AI coding agents running on a personal workstation.
+Target operator: one developer who keeps OpenAI Codex or other AI coding agents running on a personal workstation and wants one durable control plane for AI Agents, projects, GitHub, deployments, logs, monitoring, remote commands, knowledge, and workflows.
 
-One-sentence identity: a secure local control plane for daily mobile supervision of coding agents.
+One-sentence identity: a secure local AI development operating system for daily mobile supervision and control of development agents and workflows.
 
 The confirmed mainline is:
 
@@ -36,9 +36,9 @@ The moat for this project is operational continuity: after refresh, network loss
 
 ## 3. Goals
 
-First-phase goal: one real closed loop with one workspace, one Codex-compatible agent adapter, login, dashboard, chat, logs, file changes, screenshots, and persisted state.
+First-phase goal: one real closed loop with one workspace, one Codex-compatible agent provider, login, dashboard, chat, logs, file changes, screenshots, and persisted state.
 
-Long-term goal: a plugin-ready local control plane for multiple agents, workflows, terminal, Git, Docker, deploy, testing, and CI/CD operations.
+Long-term goal: a plugin-ready local AI Development OS for multiple agents, workflows, terminal, Git, Docker, deploy, testing, CI/CD, remote consoles, knowledge bases, and MCP operations.
 
 The project is real when the developer can leave the workstation, open the PWA on iPhone, see current state/logs, send a command, and later reload without losing messages or event history.
 
@@ -71,7 +71,7 @@ login
   -> refresh and replay from SQLite
 ```
 
-This loop proves the product is an operational control console rather than a static mock.
+This loop proves the product is an operational AI development OS rather than a static mock or Codex-only dashboard.
 
 ## 6. Architecture Principles
 

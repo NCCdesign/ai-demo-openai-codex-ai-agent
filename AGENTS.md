@@ -1,6 +1,6 @@
-# AI Agent Console Agent Constitution
+# NCC AI Development OS Agent Constitution
 
-This repository builds a long-lived local AI development assistant console. Future agents must treat `dev-docs/README.md` as the active project truth index before changing code.
+This repository builds **NCC AI Development OS** (`NCC AI OS`), a long-lived local-first AI development operating system. Future agents must treat `dev-docs/README.md` as the active project truth index before changing code.
 
 Guardrail markers: 架构优先, 设计优先, 真源, 停止条件, 用户明确否定的概念必须删除, 立项期临时宪法, 禁止选项剧场, 框架, 验收.
 
@@ -25,13 +25,16 @@ When sources conflict, use this order:
 
 ## Product Boundary
 
-The product is a local-first AI development assistant console for monitoring and controlling long-running coding agents from mobile and desktop browsers.
+The product is a local-first AI development operating system for monitoring and controlling long-running coding agents, projects, logs, deployment hooks, notifications, and automation workflows from mobile and desktop browsers.
+
+OpenAI Codex is only the first Agent Provider. The architecture must stay provider-neutral so Claude, Gemini, GPT, local models, GitHub, Vercel, Docker, Telegram, WeChat, MCP, knowledge bases, and workflows can be added through platform modules or plugins later.
 
 The product is not:
 
 - A cloud SaaS control plane.
 - A remote desktop replacement.
 - A general chat clone.
+- A Codex-only dashboard.
 - A plugin marketplace in the first phase.
 - A tool that exposes arbitrary filesystem or shell access without explicit server-side boundaries.
 
@@ -61,4 +64,3 @@ The product is not:
 - Stage explicit paths only if committing.
 - Keep internal design truth in `dev-docs/`.
 - Put only user-facing deployment/API/operation docs in `docs/` when that directory exists.
-

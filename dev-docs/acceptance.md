@@ -63,7 +63,7 @@ Use precise claims:
 
 Before closing a phase:
 
-- Product boundary still matches local-first AI Agent Console.
+- Product boundary still matches NCC AI OS as a local-first AI development operating system, not a Codex-only dashboard.
 - There is one active truth index: `dev-docs/README.md`.
 - Status enums are owned by `packages/core`.
 - Database schema is owned by `packages/db`.
@@ -74,7 +74,7 @@ Before closing a phase:
 
 ## Drift Checklist
 
-- Product boundary remains local-first AI Agent Console.
+- Product boundary remains local-first NCC AI Development OS.
 - Non-goals have not entered MVP.
 - `dev-docs/README.md` is the one active truth index.
 - There is no private competing architecture.

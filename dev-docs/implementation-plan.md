@@ -2,7 +2,7 @@
 
 ## MVP
 
-Goal: daily usable local control console.
+Goal: daily usable local NCC AI OS control surface.
 
 Build order:
 
@@ -38,7 +38,7 @@ Add:
 
 ## Formal Release
 
-Goal: extensible local agent platform.
+Goal: extensible local AI Development OS.
 
 Add:
 
@@ -68,4 +68,3 @@ This initial run should leave:
 - At least one runnable check.
 
 It does not need to fully operate Codex yet unless local CLI integration is safe and discoverable during implementation.
-

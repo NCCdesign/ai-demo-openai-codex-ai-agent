@@ -1,8 +1,8 @@
-# AI 开发助手控制台
+# NCC AI Development OS
 
-本项目是一个本地优先的 AI 开发助手控制台，用来在电脑长期运行 Codex 或其他开发智能体时，通过桌面或手机浏览器查看进度、查看日志、发送指令、查看文件变更和截图。
+NCC AI Development OS, 简称 NCC AI OS，是一个本地优先的 AI 开发操作系统。它用于在个人电脑长期运行 Codex 或其他 AI Agent 时，通过桌面或手机浏览器查看进度、查看日志、发送命令、查看文件变更和截图。
 
-它不是云端 SaaS，也不是远程桌面替代品。当前目标是一个可长期演进的本地生产力工具。
+它不是云端 SaaS，不是远程桌面替代品，也不是 Codex-only Dashboard。Codex 只是第一个 Agent Provider；未来 Claude、GPT、Gemini、GitHub、Vercel、Docker、Telegram、微信、MCP、知识库和自动化工作流都应通过平台模块或插件接入。
 
 ## 当前能力
 
@@ -12,6 +12,7 @@
 - 登录、本地访问令牌、退出登录。
 - 总览、聊天、实时日志、文件修改、截图、设置页面。
 - Codex 兼容进程适配器和空跑智能体适配器。
+- Command Queue 基线：Continue、Pause、Resume、Stop、Cancel 统一入队后执行。
 - Git 摘要、文件差异、日志下载、截图产物。
 - 架构真源文档位于 `dev-docs/`。
 
@@ -60,6 +61,8 @@ http://192.168.2.101:3000
 pnpm check
 pnpm build
 ```
+
+注意：不要并行运行 `pnpm check` 和 `pnpm build`，Next.js `.next` 输出目录会产生竞争，可能导致临时构建失败。
 
 ## 项目结构
 
