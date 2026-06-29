@@ -8,7 +8,7 @@ export interface CodexProcessAgentOptions {
 
 export class CodexProcessAgentAdapter implements AgentAdapter {
   readonly type = "codex";
-  private readonly sessions = new Map<string, { process: RunningProcess; status: AgentStatus }>();
+  private readonly sessions = new Map<string, { process: RunningProcess; status: AgentStatus; stopping: boolean }>();
 
   constructor(private readonly options: CodexProcessAgentOptions = {}) {}
 
@@ -34,8 +34,8 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
         input.onEvent?.(event(input.sessionId, "system", "error", `Codex process error: ${error.message}`));
       },
       onExit: (code, signal) => {
-        const status: AgentStatus = code === 0 ? "completed" : "failed";
         const session = this.sessions.get(input.sessionId);
+        const status: AgentStatus = session?.stopping ? "stopped" : code === 0 ? "completed" : "failed";
         if (session) {
           session.status = status;
         }
@@ -44,7 +44,7 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       }
     });
 
-    this.sessions.set(input.sessionId, { process: running, status: currentStatus });
+    this.sessions.set(input.sessionId, { process: running, status: currentStatus, stopping: false });
 
     if (input.initialPrompt) {
       running.write(`${input.initialPrompt}\n`);
@@ -52,7 +52,8 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
 
     return {
       sessionId: input.sessionId,
-      status: currentStatus
+      status: currentStatus,
+      pid: running.child?.pid ?? null
     };
   }
 
@@ -70,6 +71,7 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       return;
     }
     session.status = "stopping";
+    session.stopping = true;
     session.process.stop();
   }
 

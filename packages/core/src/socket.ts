@@ -1,5 +1,6 @@
 import type {
   Artifact,
+  AgentRuntimeInstance,
   Command,
   FileChange,
   LogLine,
@@ -38,6 +39,7 @@ export type ServerEvent =
   | { type: "dashboard:update"; payload: unknown; createdAt: string }
   | { type: "session:created"; session: Session; createdAt: string }
   | { type: "session:status_changed"; sessionId: string; status: SessionStatus; createdAt: string }
+  | { type: "agent_runtime:status_changed"; runtime: AgentRuntimeInstance; createdAt: string }
   | { type: "message:created"; message: Message; createdAt: string }
   | { type: "command:created"; command: Command; createdAt: string }
   | { type: "command:status_changed"; command: Command; createdAt: string }

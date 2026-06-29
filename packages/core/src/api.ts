@@ -1,5 +1,6 @@
 import type {
   Agent,
+  AgentRuntimeInstance,
   Artifact,
   AuthToken,
   Command,
@@ -127,6 +128,10 @@ export interface SessionDetailResponse {
   workspace: Workspace;
   messageCount: number;
   lastMessageAt: string | null;
+}
+
+export interface AgentRuntimeResponse {
+  runtime: AgentRuntimeInstance;
 }
 
 export interface SessionsResponse {

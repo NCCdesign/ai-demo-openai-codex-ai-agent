@@ -14,6 +14,21 @@ export type AgentStatus =
 
 export type SessionStatus = AgentStatus;
 
+export const agentRuntimeStatuses = [
+  "idle",
+  "planning",
+  "running",
+  "waiting",
+  "tool_calling",
+  "completed",
+  "failed",
+  "cancelled"
+] as const;
+
+export type AgentRuntimeStatus = (typeof agentRuntimeStatuses)[number];
+
+export type AgentRuntimeRecoverPolicy = "none" | "manual" | "restart";
+
 export type TaskStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
 export const commandTypes = [
@@ -106,6 +121,20 @@ export interface Session {
   endedAt: string | null;
   lastError: string | null;
   createdBy: string | null;
+}
+
+export interface AgentRuntimeInstance {
+  id: string;
+  sessionId: string;
+  workspaceId: string;
+  agentId: string;
+  pid: number | null;
+  status: AgentRuntimeStatus;
+  heartbeatAt: string;
+  startedAt: string;
+  stoppedAt: string | null;
+  lastError: string | null;
+  recoverPolicy: AgentRuntimeRecoverPolicy;
 }
 
 export interface Task {

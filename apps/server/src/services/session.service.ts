@@ -1,11 +1,13 @@
 import type { AgentRuntimeEvent, CreateMessageRequest, LogLine, Message, Session, SessionStatus } from "@aic/core";
 import type { ConsoleRepository } from "@aic/db";
 import { AgentRegistry } from "@aic/agents";
+import type { AgentRuntimeService } from "./agent-runtime.service.js";
 
 export class SessionService {
   constructor(
     private readonly repo: ConsoleRepository,
     private readonly agents: AgentRegistry,
+    private readonly runtimes?: AgentRuntimeService,
     private readonly onLog?: (log: LogLine) => void
   ) {}
 
@@ -26,15 +28,29 @@ export class SessionService {
       createdBy: input.userId,
       status: "starting"
     });
-    const adapter = this.agents.get(agent.type);
-    const handle = await adapter.start({
+    this.runtimes?.createForSession({
       sessionId: session.id,
-      workspacePath: workspace.path,
-      onEvent: (event) => this.persistAgentEvent(event),
-      onStatus: (status) => this.repo.updateSessionStatus(session.id, status)
+      workspaceId: workspace.id,
+      agentId: agent.id,
+      pid: null,
+      sessionStatus: session.status
     });
-    this.repo.updateSessionStatus(session.id, handle.status);
-    return { ...session, status: handle.status };
+    const adapter = this.agents.get(agent.type);
+    try {
+      const handle = await adapter.start({
+        sessionId: session.id,
+        workspacePath: workspace.path,
+        onEvent: (event) => this.persistAgentEvent(event),
+        onStatus: (status) => this.updateSessionAndRuntimeStatus(session.id, status)
+      });
+      this.updateSessionAndRuntimeStatus(session.id, handle.status, { pid: handle.pid ?? null });
+      return { ...session, status: handle.status };
+    } catch (error) {
+      this.updateSessionAndRuntimeStatus(session.id, "failed", {
+        lastError: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
   }
 
   createUserMessage(sessionId: string, request: CreateMessageRequest): Message {
@@ -53,7 +69,7 @@ export class SessionService {
     const agent = this.requireAgent(session.agentId);
     const adapter = this.agents.get(agent.type);
     await adapter.stop(sessionId);
-    this.repo.updateSessionStatus(sessionId, "stopped");
+    this.updateSessionAndRuntimeStatus(sessionId, "stopped");
   }
 
   async sendAgentControl(sessionId: string, content: string, nextStatus: SessionStatus): Promise<LogLine> {
@@ -61,7 +77,7 @@ export class SessionService {
     const agent = this.requireAgent(session.agentId);
     const adapter = this.agents.get(agent.type);
     await adapter.sendMessage(sessionId, content);
-    this.repo.updateSessionStatus(sessionId, nextStatus);
+    this.updateSessionAndRuntimeStatus(sessionId, nextStatus);
     return this.repo.appendLog({
       sessionId,
       stream: "agent",
@@ -71,6 +87,7 @@ export class SessionService {
   }
 
   private persistAgentEvent(event: AgentRuntimeEvent): LogLine {
+    this.runtimes?.heartbeat(event.sessionId);
     const log = this.repo.appendLog({
       sessionId: event.sessionId,
       stream: event.stream,
@@ -79,6 +96,11 @@ export class SessionService {
     });
     this.onLog?.(log);
     return log;
+  }
+
+  private updateSessionAndRuntimeStatus(sessionId: string, status: SessionStatus, input: { pid?: number | null; lastError?: string | null } = {}): void {
+    this.repo.updateSessionStatus(sessionId, status, input.lastError ?? null);
+    this.runtimes?.syncSessionStatus(sessionId, status, input);
   }
 
   private requireSession(sessionId: string): Session {

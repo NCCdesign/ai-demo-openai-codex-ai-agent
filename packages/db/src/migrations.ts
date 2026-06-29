@@ -38,6 +38,28 @@ const commandQueueSql = `
   create index if not exists idx_command_events_command_id on command_events(command_id, id);
 `;
 
+const agentRuntimeSql = `
+  create table if not exists agent_runtime_instances (
+    id text primary key,
+    session_id text not null,
+    workspace_id text not null,
+    agent_id text not null,
+    pid integer,
+    status text not null,
+    heartbeat_at text not null,
+    started_at text not null,
+    stopped_at text,
+    last_error text,
+    recover_policy text not null,
+    foreign key (session_id) references sessions(id) on delete cascade,
+    foreign key (workspace_id) references workspaces(id),
+    foreign key (agent_id) references agents(id)
+  );
+
+  create unique index if not exists idx_agent_runtime_session on agent_runtime_instances(session_id);
+  create index if not exists idx_agent_runtime_status_heartbeat on agent_runtime_instances(status, heartbeat_at);
+`;
+
 const migrations = [
   {
     id: "001_initial_schema",
@@ -183,6 +205,7 @@ const migrations = [
       );
 
       ${commandQueueSql}
+      ${agentRuntimeSql}
 
       create index if not exists idx_messages_session_created on messages(session_id, created_at);
       create index if not exists idx_logs_session_id_id on logs(session_id, id);
@@ -194,6 +217,10 @@ const migrations = [
   {
     id: "002_command_queue",
     sql: commandQueueSql
+  },
+  {
+    id: "003_agent_runtime_instances",
+    sql: agentRuntimeSql
   }
 ];
 

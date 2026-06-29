@@ -19,6 +19,7 @@ export interface AgentRuntimeEvent {
 export interface AgentSessionHandle {
   sessionId: string;
   status: AgentStatus;
+  pid?: number | null;
 }
 
 export interface AgentAdapter {

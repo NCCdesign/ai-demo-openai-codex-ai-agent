@@ -34,6 +34,8 @@ Server/API:
 
 - Auth-required endpoints reject unauthenticated requests.
 - Health/dashboard endpoints return structured data.
+- Agent Runtime instance is persisted when a session starts and can be read through `GET /api/sessions/:id/runtime`.
+- Agent Runtime heartbeat/status are updated through server services, not UI or adapter-private state.
 - Socket handshake validates token.
 - Log write and replay works from persistence.
 
@@ -129,6 +131,7 @@ The current phase stops after the scaffold compiles, a core behavior check runs,
 - 2026-06-29: Command Queue baseline added: core command types/state machine, SQLite `commands` and `command_events`, command repository, `POST/GET /api/commands`, and `command:created` Socket event. `pnpm check` and `pnpm build` passed; Fastify inject smoke verified login, no-op session creation, command creation, command listing, and command detail retrieval.
 - 2026-06-29: Command worker added for Agent control commands: `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel` execute through the server worker instead of route-level runtime calls. Worker checks cover pause/resume/stop and explicit failure for unimplemented handlers; server smoke verifies `agent.continue` reaches `completed` and writes an Agent control log. `pnpm check` and `pnpm build` passed.
 - 2026-06-29: Legacy-compatible Chat message and Stop routes now create Command Queue entries instead of directly calling Agent adapters. Server smoke verifies `POST /api/sessions/:id/messages` creates and completes an `agent.continue` command, and `POST /api/sessions/:id/stop` creates and completes an `agent.stop` command. `pnpm check` passed; an initial parallel `pnpm check` + `pnpm build` run caused a transient `.next` build race, then sequential `pnpm build` passed.
+- 2026-06-29: Agent Runtime instance and heartbeat baseline added: core runtime status contract, SQLite `agent_runtime_instances`, server `AgentRuntimeService`, `GET /api/sessions/:id/runtime`, and `agent_runtime:status_changed` socket contract. Server checks verify runtime create/read/status sync and stop-to-cancelled transition.
 
 ## Current Phase Acceptance
 

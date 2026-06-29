@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SQLInputValue } from "node:sqlite";
 import type { DashboardResponse, LogsResponse, SessionDetailResponse, SessionListItem } from "@aic/core";
-import { transitionCommand, type Agent, type Artifact, type ArtifactType, type Command, type CommandSource, type CommandStatus, type CommandType, type ContentFormat, type FileChange, type FileChangeType, type LogLevel, type LogLine, type LogStream, type Message, type Notification, type NotificationStatus, type NotificationType, type Session, type SessionStatus, type Workspace } from "@aic/core";
+import { transitionCommand, type Agent, type AgentRuntimeInstance, type AgentRuntimeRecoverPolicy, type AgentRuntimeStatus, type Artifact, type ArtifactType, type Command, type CommandSource, type CommandStatus, type CommandType, type ContentFormat, type FileChange, type FileChangeType, type LogLevel, type LogLine, type LogStream, type Message, type Notification, type NotificationStatus, type NotificationType, type Session, type SessionStatus, type Workspace } from "@aic/core";
 import type { DbClient } from "./client.js";
 
 const now = () => new Date().toISOString();
@@ -189,6 +189,124 @@ export class ConsoleRepository {
          where id = ?`
       )
       .run(status, lastError, endedAt, sessionId);
+  }
+
+  createAgentRuntimeInstance(input: {
+    sessionId: string;
+    workspaceId: string;
+    agentId: string;
+    pid?: number | null;
+    status: AgentRuntimeStatus;
+    recoverPolicy?: AgentRuntimeRecoverPolicy;
+    lastError?: string | null;
+  }): AgentRuntimeInstance {
+    const createdAt = now();
+    const instance: AgentRuntimeInstance = {
+      id: id("ari"),
+      sessionId: input.sessionId,
+      workspaceId: input.workspaceId,
+      agentId: input.agentId,
+      pid: input.pid ?? null,
+      status: input.status,
+      heartbeatAt: createdAt,
+      startedAt: createdAt,
+      stoppedAt: null,
+      lastError: input.lastError ?? null,
+      recoverPolicy: input.recoverPolicy ?? "manual"
+    };
+    this.db
+      .prepare(
+        `insert into agent_runtime_instances (
+          id, session_id, workspace_id, agent_id, pid, status, heartbeat_at,
+          started_at, stopped_at, last_error, recover_policy
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        instance.id,
+        instance.sessionId,
+        instance.workspaceId,
+        instance.agentId,
+        instance.pid,
+        instance.status,
+        instance.heartbeatAt,
+        instance.startedAt,
+        instance.stoppedAt,
+        instance.lastError,
+        instance.recoverPolicy
+      );
+    return instance;
+  }
+
+  findAgentRuntimeBySession(sessionId: string): AgentRuntimeInstance | null {
+    const row = this.db.prepare("select * from agent_runtime_instances where session_id = ?").get(sessionId);
+    return row ? mapAgentRuntimeInstance(row as unknown as AgentRuntimeInstanceRow) : null;
+  }
+
+  listActiveAgentRuntimeInstances(): AgentRuntimeInstance[] {
+    return this.db
+      .prepare(
+        `select * from agent_runtime_instances
+         where status in ('planning', 'running', 'waiting', 'tool_calling')
+         order by heartbeat_at asc`
+      )
+      .all()
+      .map((row) => mapAgentRuntimeInstance(row as unknown as AgentRuntimeInstanceRow));
+  }
+
+  listStaleAgentRuntimeInstances(cutoffIso: string): AgentRuntimeInstance[] {
+    return this.db
+      .prepare(
+        `select * from agent_runtime_instances
+         where status in ('planning', 'running', 'waiting', 'tool_calling')
+           and heartbeat_at < ?
+         order by heartbeat_at asc`
+      )
+      .all(cutoffIso)
+      .map((row) => mapAgentRuntimeInstance(row as unknown as AgentRuntimeInstanceRow));
+  }
+
+  updateAgentRuntimeHeartbeat(sessionId: string): AgentRuntimeInstance | null {
+    const current = this.findAgentRuntimeBySession(sessionId);
+    if (!current) {
+      return null;
+    }
+    this.db.prepare("update agent_runtime_instances set heartbeat_at = ? where session_id = ?").run(now(), sessionId);
+    return this.findAgentRuntimeBySession(sessionId);
+  }
+
+  updateAgentRuntimeStatus(
+    sessionId: string,
+    status: AgentRuntimeStatus,
+    input: {
+      pid?: number | null;
+      lastError?: string | null;
+    } = {}
+  ): AgentRuntimeInstance | null {
+    const current = this.findAgentRuntimeBySession(sessionId);
+    if (!current) {
+      return null;
+    }
+    const updatedAt = now();
+    const stoppedAt = ["completed", "failed", "cancelled"].includes(status) ? current.stoppedAt ?? updatedAt : current.stoppedAt;
+    this.db
+      .prepare(
+        `update agent_runtime_instances
+         set status = ?,
+             pid = ?,
+             heartbeat_at = ?,
+             stopped_at = ?,
+             last_error = ?
+         where session_id = ?`
+      )
+      .run(
+        status,
+        input.pid === undefined ? current.pid : input.pid,
+        updatedAt,
+        stoppedAt,
+        input.lastError === undefined ? current.lastError : input.lastError,
+        sessionId
+      );
+    return this.findAgentRuntimeBySession(sessionId);
   }
 
   createMessage(input: {
@@ -624,6 +742,20 @@ interface WorkspaceRow {
   updated_at: string;
 }
 
+interface AgentRuntimeInstanceRow {
+  id: string;
+  session_id: string;
+  workspace_id: string;
+  agent_id: string;
+  pid: number | null;
+  status: AgentRuntimeStatus;
+  heartbeat_at: string;
+  started_at: string;
+  stopped_at: string | null;
+  last_error: string | null;
+  recover_policy: AgentRuntimeRecoverPolicy;
+}
+
 interface AgentRow {
   id: string;
   type: Agent["type"];
@@ -771,6 +903,22 @@ function mapWorkspace(row: WorkspaceRow): Workspace {
     defaultBranch: row.default_branch,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+function mapAgentRuntimeInstance(row: AgentRuntimeInstanceRow): AgentRuntimeInstance {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    workspaceId: row.workspace_id,
+    agentId: row.agent_id,
+    pid: row.pid,
+    status: row.status,
+    heartbeatAt: row.heartbeat_at,
+    startedAt: row.started_at,
+    stoppedAt: row.stopped_at,
+    lastError: row.last_error,
+    recoverPolicy: row.recover_policy
   };
 }
 

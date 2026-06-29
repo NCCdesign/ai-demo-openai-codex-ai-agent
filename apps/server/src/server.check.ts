@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AuthLoginResponse, CommandResponse, CommandsResponse, LogsResponse, Session } from "@aic/core";
+import type { AgentRuntimeResponse, AuthLoginResponse, CommandResponse, CommandsResponse, LogsResponse, Session } from "@aic/core";
 
 const root = mkdtempSync(join(tmpdir(), "aic-server-check-"));
 process.env.AIC_DATABASE_PATH = join(root, "server.sqlite");
@@ -30,6 +30,18 @@ try {
   });
   assert.equal(sessionResponse.statusCode, 200);
   const session = sessionResponse.json<{ session: Session }>().session;
+
+  const runtimeResponse = await app.fastify.inject({
+    method: "GET",
+    url: `/api/sessions/${session.id}/runtime`,
+    headers: { authorization: `Bearer ${login.token}` }
+  });
+  assert.equal(runtimeResponse.statusCode, 200);
+  const runtime = runtimeResponse.json<AgentRuntimeResponse>().runtime;
+  assert.equal(runtime.sessionId, session.id);
+  assert.equal(runtime.status, "waiting");
+  assert.equal(runtime.recoverPolicy, "manual");
+  assert.ok(runtime.heartbeatAt);
 
   const createCommandResponse = await app.fastify.inject({
     method: "POST",
@@ -101,6 +113,13 @@ try {
   const stopCommand = stopCommandsResponse.json<CommandsResponse>().commands.find((item) => item.type === "agent.stop");
   assert.ok(stopCommand);
   await waitForCommandStatus(stopCommand.id, "completed", login.token);
+  const stoppedRuntimeResponse = await app.fastify.inject({
+    method: "GET",
+    url: `/api/sessions/${session.id}/runtime`,
+    headers: { authorization: `Bearer ${login.token}` }
+  });
+  assert.equal(stoppedRuntimeResponse.statusCode, 200);
+  assert.equal(stoppedRuntimeResponse.json<AgentRuntimeResponse>().runtime.status, "cancelled");
 
   console.log("server command API check passed");
 } finally {

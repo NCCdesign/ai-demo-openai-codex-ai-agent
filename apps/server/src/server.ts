@@ -13,6 +13,7 @@ import { DashboardService } from "./services/dashboard.service.js";
 import { NotificationService } from "./services/notification.service.js";
 import { CommandService } from "./services/command.service.js";
 import { CommandWorker } from "./services/command-worker.js";
+import { AgentRuntimeService } from "./services/agent-runtime.service.js";
 import { attachSocketServer } from "./socket/socket-server.js";
 
 export async function createServer() {
@@ -35,9 +36,16 @@ export async function createServer() {
   const dashboard = new DashboardService(repo);
   const notifications = new NotificationService(repo);
   const commands = new CommandService(repo);
+  const runtimes = new AgentRuntimeService(repo, (runtime) => {
+    io.to(`session:${runtime.sessionId}`).emit("agent_runtime:status_changed", {
+      type: "agent_runtime:status_changed",
+      runtime,
+      createdAt: new Date().toISOString()
+    });
+  });
   const fileChanges = new FileChangeService(repo);
   const screenshots = new ScreenshotService(repo, config.artifactRoot);
-  const sessions = new SessionService(repo, new AgentRegistry(), (log) => {
+  const sessions = new SessionService(repo, new AgentRegistry(), runtimes, (log) => {
     io.to(`session:${log.sessionId}`).emit("log:line", {
       type: "log:line",
       log,
@@ -134,6 +142,14 @@ export async function createServer() {
       return reply.code(404).send({ code: "not_found", message: "会话不存在" });
     }
     return detail;
+  });
+
+  app.get<{ Params: { id: string } }>("/api/sessions/:id/runtime", async (request, reply) => {
+    const runtime = runtimes.findBySession(request.params.id);
+    if (!runtime) {
+      return reply.code(404).send({ code: "not_found", message: "Runtime instance does not exist." });
+    }
+    return { runtime };
   });
 
   app.get("/api/notifications", async (request) => ({
@@ -336,10 +352,12 @@ export async function createServer() {
   return {
     fastify: app,
     start: async () => {
+      runtimes.startHeartbeat();
       commandWorker.start();
       await app.listen({ host: config.host, port: config.port });
     },
     close: async () => {
+      runtimes.stopHeartbeat();
       commandWorker.stop();
       await app.close();
       db.close();

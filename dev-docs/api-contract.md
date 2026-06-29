@@ -48,10 +48,19 @@ Agent status/enable/disable endpoints are reserved for the Beta agent configurat
 GET  /api/sessions?limit=20
 POST /api/sessions
 GET  /api/sessions/:id
+GET  /api/sessions/:id/runtime
 POST /api/sessions/:id/stop
 ```
 
 `GET /api/sessions` returns recent persisted sessions with agent/workspace display data, message count, and `lastMessageAt`. `GET /api/sessions/:id` returns the session detail with full agent and workspace records. These REST routes are the recovery path after browser refresh or mobile reconnect; clients must not reconstruct session state from only local storage or Socket.IO events.
+
+`GET /api/sessions/:id/runtime` returns the durable Agent Runtime instance for the session. Runtime status values are provider-neutral:
+
+```text
+idle | planning | running | waiting | tool_calling | completed | failed | cancelled
+```
+
+This route is the current read path for future Telegram status views. It reads SQLite state; it does not inspect adapter memory.
 
 Session restart is reserved for a later lifecycle policy. MVP supports creating a new session and stopping an existing one.
 
@@ -177,6 +186,7 @@ dashboard:unsubscribe
 dashboard:update
 session:created
 session:status_changed
+agent_runtime:status_changed
 message:created
 command:created
 command:status_changed

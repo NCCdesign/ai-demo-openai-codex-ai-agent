@@ -56,6 +56,20 @@ sessions (
   created_by text
 );
 
+agent_runtime_instances (
+  id text primary key,
+  session_id text not null,
+  workspace_id text not null,
+  agent_id text not null,
+  pid integer,
+  status text not null,
+  heartbeat_at text not null,
+  started_at text not null,
+  stopped_at text,
+  last_error text,
+  recover_policy text not null
+);
+
 tasks (
   id text primary key,
   session_id text not null,
@@ -197,6 +211,20 @@ Command source:
 ```text
 ui | api | telegram | system
 ```
+
+Agent Runtime:
+
+```text
+idle | planning | running | waiting | tool_calling | completed | failed | cancelled
+```
+
+Agent Runtime recover policy:
+
+```text
+none | manual | restart
+```
+
+`agent_runtime_instances.session_id` is unique. The runtime row is the durable source for remote status views and recovery preparation; adapter in-memory handles are not recovery truth.
 
 ## Migration Rules
 

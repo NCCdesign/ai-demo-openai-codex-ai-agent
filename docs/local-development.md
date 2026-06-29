@@ -91,6 +91,22 @@ $env:AIC_CODEX_ARGS = ""
 
 The Codex adapter starts a child process in the workspace path and persists stdout, stderr, process errors, and process exit messages into session logs. If the CLI is missing, the session records a structured error log instead of pretending to run.
 
+## Runtime Status
+
+Each started session now has a persisted Agent Runtime instance. After creating a session, query it with:
+
+```powershell
+curl.exe -H "Authorization: Bearer <token>" http://127.0.0.1:4317/api/sessions/<session-id>/runtime
+```
+
+Runtime status values are provider-neutral:
+
+```text
+idle | planning | running | waiting | tool_calling | completed | failed | cancelled
+```
+
+`heartbeatAt` is updated by the local daemon while the runtime is active. This is the baseline for future recovery and Telegram status views; full process restart/recovery is not implemented yet.
+
 ## Screenshots
 
 The screenshot runner tries a local Chromium-compatible browser in this order: `AIC_BROWSER_COMMAND`, Microsoft Edge, Google Chrome, then common Linux Chromium command names. Override the browser path when needed:

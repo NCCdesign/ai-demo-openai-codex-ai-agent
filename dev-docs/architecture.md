@@ -34,6 +34,7 @@ Owns:
 - Socket event payload types.
 - Agent Adapter SPI.
 - Session state transitions.
+- Agent Runtime status values and session-to-runtime status mapping.
 - Command Queue types and state transitions.
 
 Forbidden:
@@ -99,6 +100,7 @@ Owns:
 - REST API.
 - Socket.IO server.
 - Service orchestration.
+- Agent Runtime instance lifecycle, heartbeat, and recovery preparation.
 - Command Queue worker orchestration.
 - Event persistence.
 - Artifact storage.
@@ -178,6 +180,27 @@ session.agentId
 ```
 
 No HTTP route or UI component is allowed to special-case Codex. Codex is one Agent Provider behind the shared SPI, not the product boundary.
+
+Agent Runtime instance:
+
+```text
+POST /api/sessions
+  -> sessions table creates logical conversation/session
+  -> agent_runtime_instances creates durable runtime row
+  -> AgentAdapter starts local provider process/session
+  -> AgentRuntimeService maps SessionStatus to AgentRuntimeStatus
+  -> heartbeat_at updates from adapter events and daemon heartbeat ticker
+  -> GET /api/sessions/:id/runtime reads persisted runtime truth
+  -> agent_runtime:status_changed broadcasts live status transport
+```
+
+Runtime status is provider-neutral:
+
+```text
+idle | planning | running | waiting | tool_calling | completed | failed | cancelled
+```
+
+The current heartbeat is a local-daemon liveness baseline, not full process recovery. Recovery policy is persisted as `manual` until the supervisor/restart decision is implemented. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
 
 Log replay:
 
