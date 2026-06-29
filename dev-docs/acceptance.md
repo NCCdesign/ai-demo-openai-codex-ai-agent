@@ -37,6 +37,7 @@ Server/API:
 - Agent Runtime instance is persisted when a session starts and can be read through `GET /api/sessions/:id/runtime`.
 - Agent Runtime heartbeat/status are updated through server services, not UI or adapter-private state.
 - Agent Runtime startup reconciliation marks stale active runtime rows failed instead of exposing ghost running state after daemon restart.
+- Codex process startup failure persists session/runtime `failed`, writes a system error log, and emits a durable Agent Stream error instead of returning fake running state.
 - Command Worker calls explicit Agent Adapter control methods for pause/resume/stop instead of treating all controls as chat text.
 - Telegram Remote Console commands create Command Queue entries and do not directly call Agent adapters.
 - Telegram Remote Console rejects non-allowlisted chat IDs.
@@ -142,6 +143,7 @@ The current phase stops after the scaffold compiles, a core behavior check runs,
 - 2026-06-29: Legacy-compatible Chat message and Stop routes now create Command Queue entries instead of directly calling Agent adapters. Server smoke verifies `POST /api/sessions/:id/messages` creates and completes an `agent.continue` command, and `POST /api/sessions/:id/stop` creates and completes an `agent.stop` command. `pnpm check` passed; an initial parallel `pnpm check` + `pnpm build` run caused a transient `.next` build race, then sequential `pnpm build` passed.
 - 2026-06-29: Agent Runtime instance and heartbeat baseline added: core runtime status contract, SQLite `agent_runtime_instances`, server `AgentRuntimeService`, `GET /api/sessions/:id/runtime`, and `agent_runtime:status_changed` socket contract. Server checks verify runtime create/read/status sync and stop-to-cancelled transition.
 - 2026-06-29: Agent Runtime startup reconciliation added: stale active runtime rows older than the heartbeat threshold are marked `failed`, clear `pid`, emit status callbacks, and keep recovery policy manual. This prevents ghost running status after daemon restart; automatic process restart is still future supervisor work.
+- 2026-06-29: Codex process startup failure path hardened: runtime spawn failures now expose `startError`, Codex adapter returns a failed handle with system log and stream error, and SessionService persists failed session/runtime state instead of a fake running session.
 - 2026-06-29: Command execution audit fields added to `commands`: `task_id`, `command_text`, `tool_name`, `exit_code`, and `duration_ms`. Command responses, stream progress events, and Telegram command notifications now carry the persisted audit context needed for remote debugging.
 - 2026-06-29: Agent Adapter control SPI now includes explicit `pause` and `resume` methods. Command Worker checks prove `agent.pause`/`agent.resume` invoke semantic adapter controls rather than `sendMessage`; Codex process pause/resume fails explicitly on unsupported Windows process control instead of reporting fake success.
 - 2026-06-29: Telegram `/status` now summarizes persisted Agent Stream context in addition to runtime/log state: current step, current file, and current tool are derived server-side by `RemoteConsoleService`.

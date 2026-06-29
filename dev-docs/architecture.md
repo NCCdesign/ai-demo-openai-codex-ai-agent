@@ -205,6 +205,8 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 The current heartbeat is a local-daemon liveness baseline, not full process recovery. Recovery policy is persisted as `manual` until the supervisor/restart decision is implemented. On daemon start, `AgentRuntimeService` reconciles stale active runtime rows whose heartbeat is older than the configured threshold by marking them `failed` with a manual-recovery error. This prevents mobile and Telegram clients from seeing ghost running sessions after a daemon restart. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
 
+Agent process startup must not create fake running state. `packages/runtime.startProcess` returns a structured `startError` when spawn fails before a child exists. The Codex adapter maps that to a failed Agent handle, system error log, and durable `agent_stream_events` error. `SessionService` then persists session/runtime status as `failed`, so Telegram and Web recovery paths show the unavailable reason instead of a running process that never existed.
+
 The Codex process adapter now exposes explicit pause/resume controls through the shared Adapter SPI. On Unix-like hosts this uses `SIGSTOP`/`SIGCONT` through `packages/runtime`; on Windows the process runner currently returns a structured unsupported result, so the command fails instead of pretending the process paused. A Windows-safe process-tree pause/resume strategy or Codex-native `exec resume` lifecycle is still required before claiming full live Codex pause/resume readiness on Windows.
 
 Agent Stream events:

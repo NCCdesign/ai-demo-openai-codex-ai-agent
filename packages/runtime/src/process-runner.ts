@@ -9,10 +9,12 @@ export interface ProcessRunnerInput {
   onStderr?: (line: string) => void;
   onError?: (error: Error) => void;
   onExit?: (code: number | null, signal: NodeJS.Signals | null) => void;
+  spawnProcess?: typeof spawn;
 }
 
 export interface RunningProcess {
   child: ChildProcessWithoutNullStreams | null;
+  startError: Error | null;
   stop: () => void;
   pause: () => boolean;
   resume: () => boolean;
@@ -22,15 +24,15 @@ export interface RunningProcess {
 export function startProcess(input: ProcessRunnerInput): RunningProcess {
   let child: ChildProcessWithoutNullStreams;
   try {
-    child = spawn(input.command, input.args ?? [], {
+    child = (input.spawnProcess ?? spawn)(input.command, input.args ?? [], {
       cwd: input.cwd,
       env: input.env ?? process.env,
       shell: false
     });
   } catch (error) {
-    input.onError?.(error instanceof Error ? error : new Error(String(error)));
     return {
       child: null,
+      startError: error instanceof Error ? error : new Error(String(error)),
       stop: () => undefined,
       pause: () => false,
       resume: () => false,
@@ -48,6 +50,7 @@ export function startProcess(input: ProcessRunnerInput): RunningProcess {
 
   return {
     child,
+    startError: null,
     stop: () => child.kill("SIGTERM"),
     // ponytail: SIGSTOP/SIGCONT covers Unix process pause now; upgrade to a Windows job-object/process-tree strategy before claiming cross-platform hard pause.
     pause: () => (process.platform === "win32" ? false : child.kill("SIGSTOP")),

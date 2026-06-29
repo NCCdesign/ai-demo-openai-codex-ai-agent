@@ -5,6 +5,7 @@ import { codexJsonlToStreamEvent } from "./codex-jsonl-stream.js";
 export interface CodexProcessAgentOptions {
   command?: string;
   args?: string[];
+  startProcess?: typeof startProcess;
 }
 
 export class CodexProcessAgentAdapter implements AgentAdapter {
@@ -17,9 +18,8 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
     const command = this.options.command ?? process.env.AIC_CODEX_COMMAND ?? "codex";
     const args = this.options.args ?? parseArgs(process.env.AIC_CODEX_ARGS);
 
-    let currentStatus: AgentStatus = "running";
-    input.onStatus?.(currentStatus);
-    const running = startProcess({
+    let currentStatus: AgentStatus = "starting";
+    const running = (this.options.startProcess ?? startProcess)({
       command,
       args,
       cwd: input.workspacePath,
@@ -51,6 +51,30 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       }
     });
 
+    if (!running.child) {
+      currentStatus = "failed";
+      const message = running.startError?.message ?? "Codex process did not start.";
+      input.onStatus?.(currentStatus);
+      input.onEvent?.(event(input.sessionId, "system", "error", `Codex process unavailable: ${message}`));
+      input.onStreamEvent?.({
+        sessionId: input.sessionId,
+        type: "error",
+        payload: {
+          message: `Codex process unavailable: ${message}`,
+          source: "codex_process",
+          command,
+          args
+        }
+      });
+      return {
+        sessionId: input.sessionId,
+        status: currentStatus,
+        pid: null
+      };
+    }
+
+    currentStatus = "running";
+    input.onStatus?.(currentStatus);
     this.sessions.set(input.sessionId, { process: running, status: currentStatus, stopping: false });
 
     if (input.initialPrompt) {

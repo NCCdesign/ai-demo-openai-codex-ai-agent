@@ -6,7 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "check": "tsx src/git.check.ts && tsx src/screenshot.check.ts",
+    "check": "tsx src/git.check.ts && tsx src/screenshot.check.ts && tsx src/process-runner.check.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
