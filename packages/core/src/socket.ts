@@ -40,6 +40,7 @@ export type ServerEvent =
   | { type: "session:status_changed"; sessionId: string; status: SessionStatus; createdAt: string }
   | { type: "message:created"; message: Message; createdAt: string }
   | { type: "command:created"; command: Command; createdAt: string }
+  | { type: "command:status_changed"; command: Command; createdAt: string }
   | { type: "log:line"; log: LogLine; createdAt: string }
   | { type: "file_change:created"; fileChange: FileChange; createdAt: string }
   | { type: "screenshot:created"; artifact: Artifact; createdAt: string }

@@ -34,6 +34,7 @@ Owns:
 - Socket event payload types.
 - Agent Adapter SPI.
 - Session state transitions.
+- Command Queue types and state transitions.
 
 Forbidden:
 
@@ -98,6 +99,7 @@ Owns:
 - REST API.
 - Socket.IO server.
 - Service orchestration.
+- Command Queue worker orchestration.
 - Event persistence.
 - Artifact storage.
 - Notification interface.
@@ -140,14 +142,18 @@ packages/core -> no project packages
 User command:
 
 ```text
-Web chat input
-  -> POST /api/sessions/:id/messages
-  -> message service persists user message
-  -> agent session service calls AgentAdapter.sendMessage
+Web / API / future Telegram command input
+  -> POST /api/commands
+  -> command service validates session/workspace/agent
+  -> packages/db persists queued command and command event
+  -> command worker marks command running
+  -> session service calls AgentAdapter control method
   -> adapter/runtime emits logs/events
-  -> server persists events/logs
-  -> Socket.IO broadcasts updates
+  -> server persists command status/logs
+  -> Socket.IO broadcasts command/status/log updates
 ```
+
+`agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel` now execute through the server-side command worker. `agent.screenshot`, `workspace.test.run`, and `workspace.deploy.run` are reserved command types and fail explicitly until their handlers are implemented. HTTP routes must not bypass the queue for new control actions.
 
 Agent selection:
 

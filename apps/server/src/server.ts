@@ -12,6 +12,7 @@ import { ScreenshotService } from "./services/screenshot.service.js";
 import { DashboardService } from "./services/dashboard.service.js";
 import { NotificationService } from "./services/notification.service.js";
 import { CommandService } from "./services/command.service.js";
+import { CommandWorker } from "./services/command-worker.js";
 import { attachSocketServer } from "./socket/socket-server.js";
 
 export async function createServer() {
@@ -40,6 +41,13 @@ export async function createServer() {
     io.to(`session:${log.sessionId}`).emit("log:line", {
       type: "log:line",
       log,
+      createdAt: new Date().toISOString()
+    });
+  });
+  const commandWorker = new CommandWorker(repo, sessions, (command) => {
+    io.to(`session:${command.sessionId}`).emit("command:status_changed", {
+      type: "command:status_changed",
+      command,
       createdAt: new Date().toISOString()
     });
   });
@@ -165,6 +173,7 @@ export async function createServer() {
       command,
       createdAt: new Date().toISOString()
     });
+    commandWorker.wake();
     return { command };
   });
 
@@ -314,9 +323,11 @@ export async function createServer() {
   return {
     fastify: app,
     start: async () => {
+      commandWorker.start();
       await app.listen({ host: config.host, port: config.port });
     },
     close: async () => {
+      commandWorker.stop();
       await app.close();
       db.close();
     }

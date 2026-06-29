@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AuthLoginResponse, CommandResponse, CommandsResponse, Session } from "@aic/core";
+import type { AuthLoginResponse, CommandResponse, CommandsResponse, LogsResponse, Session } from "@aic/core";
 
 const root = mkdtempSync(join(tmpdir(), "aic-server-check-"));
 process.env.AIC_DATABASE_PATH = join(root, "server.sqlite");
@@ -41,6 +41,7 @@ try {
   const command = createCommandResponse.json<CommandResponse>().command;
   assert.equal(command.status, "queued");
   assert.equal(command.sessionId, session.id);
+  await waitForCommandStatus(command.id, "completed", login.token);
 
   const listCommandResponse = await app.fastify.inject({
     method: "GET",
@@ -57,9 +58,38 @@ try {
   });
   assert.equal(getCommandResponse.statusCode, 200);
   assert.equal(getCommandResponse.json<CommandResponse>().command.id, command.id);
+  assert.equal(getCommandResponse.json<CommandResponse>().command.status, "completed");
+
+  const logsResponse = await app.fastify.inject({
+    method: "GET",
+    url: `/api/sessions/${session.id}/logs`,
+    headers: { authorization: `Bearer ${login.token}` }
+  });
+  assert.equal(logsResponse.statusCode, 200);
+  assert.match(
+    logsResponse.json<LogsResponse>().logs.map((log) => log.line).join("\n"),
+    /received control command: Continue/
+  );
 
   console.log("server command API check passed");
 } finally {
   await app.close();
   rmSync(root, { recursive: true, force: true });
+}
+
+async function waitForCommandStatus(commandId: string, status: string, token: string): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const response = await app.fastify.inject({
+      method: "GET",
+      url: `/api/commands/${commandId}`,
+      headers: { authorization: `Bearer ${token}` }
+    });
+    assert.equal(response.statusCode, 200);
+    const command = response.json<CommandResponse>().command;
+    if (command.status === status) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Command ${commandId} did not reach ${status}`);
 }

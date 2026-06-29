@@ -96,7 +96,7 @@ Request:
 }
 ```
 
-This API currently persists queued commands and emits `command:created`. Command worker execution is the next implementation layer; HTTP routes must not bypass the queue.
+This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel`, then emits `command:status_changed`. Reserved command types without handlers fail explicitly instead of pretending to run.
 
 ## Messages
 
@@ -177,6 +177,7 @@ session:created
 session:status_changed
 message:created
 command:created
+command:status_changed
 log:line
 file_change:created
 screenshot:created

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SQLInputValue } from "node:sqlite";
 import type { DashboardResponse, LogsResponse, SessionDetailResponse, SessionListItem } from "@aic/core";
-import type { Agent, Artifact, ArtifactType, Command, CommandSource, CommandStatus, CommandType, ContentFormat, FileChange, FileChangeType, LogLevel, LogLine, LogStream, Message, Notification, NotificationStatus, NotificationType, Session, SessionStatus, Workspace } from "@aic/core";
+import { transitionCommand, type Agent, type Artifact, type ArtifactType, type Command, type CommandSource, type CommandStatus, type CommandType, type ContentFormat, type FileChange, type FileChangeType, type LogLevel, type LogLine, type LogStream, type Message, type Notification, type NotificationStatus, type NotificationType, type Session, type SessionStatus, type Workspace } from "@aic/core";
 import type { DbClient } from "./client.js";
 
 const now = () => new Date().toISOString();
@@ -276,6 +276,11 @@ export class ConsoleRepository {
     return row ? mapCommand(row as unknown as CommandRow) : null;
   }
 
+  findNextQueuedCommand(): Command | null {
+    const row = this.db.prepare("select * from commands where status = ? order by created_at asc limit 1").get("queued");
+    return row ? mapCommand(row as unknown as CommandRow) : null;
+  }
+
   listCommands(input: { sessionId?: string; status?: CommandStatus; limit?: number } = {}): Command[] {
     const parsedLimit = Number.isFinite(input.limit) ? Math.trunc(input.limit ?? 50) : 50;
     const boundedLimit = Math.min(Math.max(parsedLimit, 1), 200);
@@ -301,6 +306,59 @@ export class ConsoleRepository {
     this.db
       .prepare("insert into command_events (command_id, type, payload_json, created_at) values (?, ?, ?, ?)")
       .run(commandId, type, JSON.stringify(payload), now());
+  }
+
+  updateCommandStatus(
+    commandId: string,
+    status: CommandStatus,
+    input: {
+      result?: Record<string, unknown> | null;
+      errorCode?: string | null;
+      errorMessage?: string | null;
+      incrementRetry?: boolean;
+    } = {}
+  ): Command {
+    const current = this.findCommand(commandId);
+    if (!current) {
+      throw new Error(`Command does not exist: ${commandId}`);
+    }
+    transitionCommand(current.status, status);
+    const startedAt = status === "running" && !current.startedAt ? now() : current.startedAt;
+    const completedAt = ["completed", "failed", "cancelled", "timed_out"].includes(status) ? now() : current.completedAt;
+    const retryCount = current.retryCount + (input.incrementRetry ? 1 : 0);
+    this.db
+      .prepare(
+        `update commands
+         set status = ?,
+             result_json = ?,
+             error_code = ?,
+             error_message = ?,
+             retry_count = ?,
+             started_at = ?,
+             completed_at = ?
+         where id = ?`
+      )
+      .run(
+        status,
+        input.result === undefined ? (current.result ? JSON.stringify(current.result) : null) : input.result ? JSON.stringify(input.result) : null,
+        input.errorCode === undefined ? current.errorCode : input.errorCode,
+        input.errorMessage === undefined ? current.errorMessage : input.errorMessage,
+        retryCount,
+        startedAt,
+        completedAt,
+        commandId
+      );
+    const updated = this.findCommand(commandId);
+    if (!updated) {
+      throw new Error(`Command disappeared after update: ${commandId}`);
+    }
+    this.appendCommandEvent(commandId, "command.status_changed", {
+      from: current.status,
+      to: status,
+      errorCode: updated.errorCode,
+      errorMessage: updated.errorMessage
+    });
+    return updated;
   }
 
   listMessages(sessionId: string): Message[] {

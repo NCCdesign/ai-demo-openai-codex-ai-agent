@@ -1,4 +1,4 @@
-import type { AgentRuntimeEvent, CreateMessageRequest, LogLine, Message, Session } from "@aic/core";
+import type { AgentRuntimeEvent, CreateMessageRequest, LogLine, Message, Session, SessionStatus } from "@aic/core";
 import type { ConsoleRepository } from "@aic/db";
 import { AgentRegistry } from "@aic/agents";
 
@@ -63,6 +63,20 @@ export class SessionService {
     const adapter = this.agents.get(agent.type);
     await adapter.stop(sessionId);
     this.repo.updateSessionStatus(sessionId, "stopped");
+  }
+
+  async sendAgentControl(sessionId: string, content: string, nextStatus: SessionStatus): Promise<LogLine> {
+    const session = this.requireSession(sessionId);
+    const agent = this.requireAgent(session.agentId);
+    const adapter = this.agents.get(agent.type);
+    await adapter.sendMessage(sessionId, content);
+    this.repo.updateSessionStatus(sessionId, nextStatus);
+    return this.repo.appendLog({
+      sessionId,
+      stream: "agent",
+      level: "info",
+      line: `${agent.name} received control command: ${content}`
+    });
   }
 
   private persistAgentEvent(event: AgentRuntimeEvent): LogLine {
