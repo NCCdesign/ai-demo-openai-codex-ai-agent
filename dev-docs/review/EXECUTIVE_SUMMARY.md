@@ -25,7 +25,7 @@
 | 没有统一 Command Queue | 所有控制动作会分散、不可审计、不可重试、不可取消 | MVP route 直接调用 service/adapter/runtime | 建立 commands/command_events、worker、handler registry 和 command policy | M-L | core, db, server, web, agents | P0 |
 | Agent runtime 依赖内存 Map | 服务重启后运行态丢失，无法长期值守 | Codex/Noop adapter 在进程内保存 session handle | 增加 runtime instance、pid/heartbeat、recover policy、workspace lease | L | agents, runtime, server, db | P0 |
 | 安全边界仍是可信 LAN MVP | 不能直接公网暴露，默认密码/secret 风险高 | 当前以本地开发和可信 Wi-Fi 为边界 | production env validation、origin allowlist、rate limit、Cloudflare Access/TLS | M | server, docs, deployment | P0 |
-| 产品真源仍有旧命名 | 后续架构可能继续围绕单 Agent/Dashboard 漂移 | 项目从 Codex 远程监控需求启动 | active truth 统一 NCC AI OS，历史名称只作为 MVP 背景 | S | dev-docs, README, UI copy | P0 |
+| 产品命名需要持续防漂移 | 后续架构可能退回单 Agent/Dashboard 思路 | 项目从 Codex 远程监控需求启动，历史评审仍有阶段性措辞 | 保持 active truth 为 NCC AI OS；历史名称只作为背景；内部 `@aic/*` 包名后续低风险迁移 | S | dev-docs, README, UI copy | P0 |
 | 可观测性和部署不足 | 无法稳定无人值守、自动恢复、远程运维 | 只有基础 `/api/health`、SQLite logs 和 local dev 文档 | health dependencies、structured logs、backup、service deployment | M | server, runtime, docs | P1 |
 | 插件系统未实现 | GitHub/Docker/Telegram/MCP 接入会散落在服务层 | 目前只有静态 AgentRegistry 和内置 services | Plugin manifest、capability、permission、secret store、registry | L | core, server, plugins, web | P1 |
 | Chat 不是 Agent Conversation | Tool call、streaming、attachments、memory、command lifecycle 缺失 | messages 表只有 role/content，Agent 输出主要进入 logs | conversation events、message parts、tool calls、attachments 和 command cards | L | core, db, server, web | P1 |
@@ -52,9 +52,9 @@ NCC AI OS
 
 下一步应做：
 
-1. 更新项目真源命名为 NCC AI Development OS。
-2. 实现 Command Queue：schema、state machine、repository、worker、handler registry。
-3. 把 Chat send、Stop、Screenshot、Git refresh 改为 command。
+1. 保持项目真源命名为 NCC AI Development OS，并防止重新收窄成 Codex Dashboard。
+2. 完成 Agent Runtime 闭环：Codex 长运行 lifecycle、pause/resume/stop/continue 实时生效。
+3. 补齐 Command Queue 执行日志：Task ID、tool、duration、exit code、retry 和错误上下文。
 4. 增加 production env validation，禁止默认密码/secret。
 5. 增加 Command Policy 和高风险操作 approval 设计。
 6. 增加 health dependencies 和 structured logs。
@@ -70,7 +70,7 @@ Production Ready: no
 
 原因：
 
-- 它已经能跑通本地 AI Agent Console 的核心闭环，所以不是 Prototype。
+- 它已经能跑通本地 NCC AI OS MVP 的核心闭环，所以不是 Prototype。
 - 它还不能稳定管理多 Agent、多项目、远程部署、安全和插件，所以只是 MVP。
 - 它没有生产部署、安全、观测、队列和恢复能力，所以不是 Beta 或 Production Ready。
 

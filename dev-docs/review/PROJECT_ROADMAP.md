@@ -19,11 +19,11 @@ NCC AI OS 不应按“页面清单”推进，而应按平台能力推进。
 
 ## Sprint 1：工程治理
 
-目标：把项目从 MVP 命名和结构升级为 NCC AI OS 的可信基线。
+目标：保持 NCC AI OS 的可信基线，继续把结构从 MVP 升级到可长期值守。
 
 任务：
 
-- 将 active truth 命名升级为 NCC AI Development OS。
+- 保持 active truth 命名为 NCC AI Development OS，清理会误导后续 agent 的历史措辞。
 - 修复中文乱码和文案源。
 - 建立 Command Queue 设计和核心状态机。
 - 统一 API error model。
@@ -206,7 +206,7 @@ NCC AI OS 不应按“页面清单”推进，而应按平台能力推进。
 | 问题 | 风险 | 原因 | 推荐方案 | 预计工作量 | 影响范围 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 路线如果按页面推进 | Terminal、Docker、Deploy 页面会绕过统一控制面 | 当前 MVP 已有多个按钮直接调用 service | 按平台能力推进：Command Queue、Runtime、Security、Observability 先行 | M-L | 全项目 | P0 |
-| Sprint 1 若不先治理命名和命令模型 | 后续 Agent/Plugin 都会继承旧边界 | 旧文档仍有 AI Agent Console 历史命名 | Sprint 1 固定 NCC AI OS 真源并建立 Command Queue 契约 | M | dev-docs, core, db, server | P0 |
+| Sprint 1 若不持续治理命名和命令模型 | 后续 Agent/Plugin 都会继承旧边界 | 历史评审仍可能残留 AI Agent Console 阶段措辞 | Sprint 1 固定 NCC AI OS 真源并建立 Command Queue 契约 | M | dev-docs, core, db, server | P0 |
 | Sprint 2 若缺少 runtime durability | 长期无人值守不可靠 | Agent handle 仍在内存 Map | 增加 runtime instance、heartbeat、workspace lease | L | agents, runtime, server, db | P0 |
 | Sprint 3 若缺少部署和备份 | 电脑重启、崩溃或数据损坏后无法恢复 | 当前只有 local development 文档 | Windows/Linux/Docker/Tunnel/Backup 形成可验证路径 | M | docs, scripts, deployment | P1 |
 | 插件过早市场化 | 权限、secret、command 边界不稳时扩大风险 | Plugin SPI 和 policy 尚未实现 | 先做内置插件证明边界，再考虑外部插件市场 | L | plugins, security, server | P1 |

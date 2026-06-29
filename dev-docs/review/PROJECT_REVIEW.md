@@ -6,7 +6,7 @@
 
 ## 1. 项目定位是否合理
 
-结论：定位合理，但当前文档和代码命名还停留在“AI Agent Console / Codex-compatible MVP”的阶段。
+结论：定位合理。当前 active truth、README 和 UI 标题已经升级为 **NCC AI Development OS / NCC AI OS**；剩余命名问题主要是内部 workspace scope `@aic/*` 和历史评审中的阶段性措辞，不能让这些实现细节重新收窄产品边界。
 
 NCC AI OS 的正确定位不是某一个 Agent 的控制台，而是本地优先的 AI 开发操作系统。它应该统一管理 Agent、项目、会话、命令、日志、截图、Git、部署、通知、知识库和自动化工作流。
 
@@ -71,7 +71,7 @@ Next.js PWA
 
 | 问题 | 风险 | 原因 | 推荐方案 | 预计工作量 | 影响范围 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 产品命名和架构文档仍以 AI Agent Console 为主 | 后续围绕 Codex 或单 Agent 继续设计，平台边界变窄 | 初始 MVP 从 Codex 监控需求启动 | 将产品真源升级为 NCC AI OS；保留历史名称为内部阶段称呼；代码包名后续分阶段迁移 | S | docs, README, UI copy | P0 |
+| 产品命名需要持续防漂移 | 后续围绕 Codex 或单 Agent 继续设计，平台边界变窄 | 初始 MVP 从 Codex 监控需求启动，内部 `@aic/*` 包名仍是历史实现细节 | 保持 active truth 为 NCC AI OS；历史名称只作为阶段背景；代码包名后续分阶段迁移 | S | docs, README, UI copy | P0 |
 | 缺少统一 Command Queue | 停止、继续、截图、测试、部署等行为分散直连服务，无法审计和重试 | MVP 直接用 REST endpoint 完成闭环 | 新增 command owner：命令表、状态机、worker、幂等 key、取消语义；所有控制动作都入队 | M-L | core, db, server, web, agents | P0 |
 | Agent 运行态不持久 | Server 重启后无法知道子进程真实状态，长期值守不可靠 | Codex/Noop adapter 用内存 Map 管理 session handle | 引入 Agent Runtime Supervisor，持久化 runtime heartbeat、pid、capabilities、last_seen、recover_policy | L | agents, runtime, server, db | P0 |
 | 安全边界不足 | 公网或 Tunnel 暴露后存在账户、命令、文件和 Agent 滥用风险 | 当前以可信 LAN MVP 为边界 | 生产模式禁止默认密钥；加 origin allowlist、rate limit、RBAC、audit log、path policy、command policy | M-L | server, config, docs | P0 |
@@ -87,7 +87,7 @@ Next.js PWA
 NCC AI OS 的下一阶段不应继续堆页面。推荐按以下主线推进：
 
 ```text
-Product rename truth
+NCC AI OS truth drift lock
   -> Command Queue
   -> durable Agent Runtime Supervisor
   -> event/log/health observability
@@ -106,4 +106,3 @@ Product rename truth
 - `dev-docs/README.md` 索引所有评审文档。
 - 不修改业务代码。
 - 明确当前是 MVP，不声明生产可用。
-

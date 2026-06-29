@@ -27,7 +27,7 @@ docs           user-facing local development docs
 | `apps/web/app/*/page.tsx` | 页面状态、登录、session 恢复、API 调用 | 多页面重复 token/session/hydrate 逻辑 | 登录失效、session 切换、错误处理不一致 | 新增 `components/providers/auth-provider.tsx` 和 `hooks/use-current-session.ts` | M | web | P1 |
 | `packages/agents` | 内置 Agent adapters | 只有静态 registry，没有 plugin/manifest | 新 Agent 接入需要改代码和 seed | 引入 Agent Provider Registry：manifest + capability + config schema | M-L | agents, core, server | P1 |
 | `packages/runtime` | process/git/screenshot/metrics/path | 未来终端、Docker、浏览器、文件系统会变大 | 平台操作混杂后权限难控 | 保留 runtime 基础能力，新增 `runtime/providers/*` 和 policy 层 | M | runtime, server | P2 |
-| `dev-docs` | 内部真源 | 旧名称仍是 AI Agent Console | 产品定位容易漂移 | 增加 NCC AI OS 命名和生产评审索引，后续再分阶段更新旧文档 | S | docs | P0 |
+| `dev-docs` | 内部真源 | active truth 已命名为 NCC AI OS，历史评审仍有阶段性措辞 | 产品定位可能被旧措辞带回单 Agent 控制台 | 保持 NCC AI OS 命名和生产评审索引，继续清理误导性历史措辞 | S | docs | P0 |
 
 ## 3. 需要拆分的目录或文件
 
@@ -165,7 +165,7 @@ apps/server/src/policies/
 | --- | --- | --- | --- |
 | root package `ncc-ai-os` | keep | P0 | 根 package 已完成 NCC AI OS 命名；`@aic/*` workspace scope 后续再独立迁移。 |
 | `@aic/*` | `@ncc-ai-os/*` 或 `@ncc/os-*` | P2 | 代码包名后迁移，先不要阻塞架构改造。 |
-| `AI Agent Console` 文档标题 | `NCC AI Development OS` | P0 | 先改 active truth 和新增 review 文档。 |
+| `AI Agent Console` 历史措辞 | `NCC AI Development OS` | P0 | active truth 已完成命名升级；后续只保留明确标注为历史背景的旧称。 |
 | `dashboard` 作为产品中心 | `operations` / `control plane` | P2 | 页面名可保留，但架构语义应是 operations center。 |
 
 ## 7. 新建议目录结构
@@ -250,4 +250,4 @@ docs/
 | DB repository 单文件承载所有表 | 多人开发冲突多，Command/Plugin 增长后难维护 | 当前仓储仍是 MVP facade | 按 aggregate 拆 repository，保留 facade 兼容调用 | M | packages/db, apps/server | P1 |
 | 前端页面重复 token/session 恢复逻辑 | 状态不一致，后续页面维护成本高 | 每个页面独立读取 localStorage 和 hydrate | 抽 `AuthProvider`、`CurrentSessionProvider` 和 hooks | M | apps/web | P1 |
 | 缺少 workers/policies 目录 | 截图、测试、部署、Terminal 会继续挤进 HTTP handler | 还没有 Command Queue 和后台 worker | 新增 `workers/` 与 `policies/`，所有动作从 Queue 执行 | M | apps/server, packages/runtime | P0 |
-| 命名仍残留 AI Agent Console / `@aic` | 长期产品定位容易退回单 Agent 控制台 | 项目从 Codex 远程监控需求起步 | 文档先统一 NCC AI OS，代码包名后续低风险迁移 | S-M | docs, package names, UI copy | P0 |
+| 命名仍残留历史措辞 / `@aic` | 长期产品定位容易退回单 Agent 控制台 | 项目从 Codex 远程监控需求起步，内部包名尚未迁移 | 文档保持 NCC AI OS；包名后续低风险迁移，不阻塞 Runtime 闭环 | S-M | docs, package names, UI copy | P0 |
