@@ -71,6 +71,37 @@ try {
     /received control command: Continue/
   );
 
+  const messageResponse = await app.fastify.inject({
+    method: "POST",
+    url: `/api/sessions/${session.id}/messages`,
+    headers: { authorization: `Bearer ${login.token}` },
+    payload: { content: "Continue from chat", contentFormat: "markdown" }
+  });
+  assert.equal(messageResponse.statusCode, 200);
+  const chatCommandsResponse = await app.fastify.inject({
+    method: "GET",
+    url: `/api/commands?sessionId=${session.id}`,
+    headers: { authorization: `Bearer ${login.token}` }
+  });
+  const chatCommand = chatCommandsResponse.json<CommandsResponse>().commands.find((item) => item.payload.text === "Continue from chat");
+  assert.ok(chatCommand);
+  await waitForCommandStatus(chatCommand.id, "completed", login.token);
+
+  const stopResponse = await app.fastify.inject({
+    method: "POST",
+    url: `/api/sessions/${session.id}/stop`,
+    headers: { authorization: `Bearer ${login.token}` }
+  });
+  assert.equal(stopResponse.statusCode, 200);
+  const stopCommandsResponse = await app.fastify.inject({
+    method: "GET",
+    url: `/api/commands?sessionId=${session.id}`,
+    headers: { authorization: `Bearer ${login.token}` }
+  });
+  const stopCommand = stopCommandsResponse.json<CommandsResponse>().commands.find((item) => item.type === "agent.stop");
+  assert.ok(stopCommand);
+  await waitForCommandStatus(stopCommand.id, "completed", login.token);
+
   console.log("server command API check passed");
 } finally {
   await app.close();

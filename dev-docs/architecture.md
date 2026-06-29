@@ -155,6 +155,19 @@ Web / API / future Telegram command input
 
 `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel` now execute through the server-side command worker. `agent.screenshot`, `workspace.test.run`, and `workspace.deploy.run` are reserved command types and fail explicitly until their handlers are implemented. HTTP routes must not bypass the queue for new control actions.
 
+The legacy-compatible chat and stop routes are thin adapters over the queue:
+
+```text
+POST /api/sessions/:id/messages
+  -> persist user message
+  -> create agent.continue command with payload.text
+  -> command worker delivers the text to the Agent adapter
+
+POST /api/sessions/:id/stop
+  -> create agent.stop command
+  -> command worker stops the Agent adapter
+```
+
 Agent selection:
 
 ```text

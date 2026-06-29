@@ -65,6 +65,8 @@ GET  /api/commands/:id
 
 `POST /api/commands` is the single server-side entry point for control commands. UI, future Telegram remote console, and API clients create command records instead of directly controlling Agent Runtime.
 
+Compatibility routes such as `POST /api/sessions/:id/messages` and `POST /api/sessions/:id/stop` are also queue-backed: they persist the user-facing message or request, create the matching command, and wake the command worker. They must not call Agent adapters directly.
+
 Initial command types:
 
 ```text

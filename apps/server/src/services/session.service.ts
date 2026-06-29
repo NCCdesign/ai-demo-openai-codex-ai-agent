@@ -13,10 +13,10 @@ export class SessionService {
     const agent = this.repo.findAgent(input.agentId);
     const workspace = this.repo.findWorkspace(input.workspaceId);
     if (!agent) {
-      throw new Error(`Agent 未启用或不存在：${input.agentId}`);
+      throw new Error(`Agent does not exist or is disabled: ${input.agentId}`);
     }
     if (!workspace) {
-      throw new Error(`项目不存在：${input.workspaceId}`);
+      throw new Error(`Workspace does not exist: ${input.workspaceId}`);
     }
 
     const session = this.repo.createSession({
@@ -37,24 +37,15 @@ export class SessionService {
     return { ...session, status: handle.status };
   }
 
-  async addUserMessage(sessionId: string, request: CreateMessageRequest): Promise<{ message: Message; log: LogLine }> {
+  createUserMessage(sessionId: string, request: CreateMessageRequest): Message {
     const session = this.requireSession(sessionId);
-    const agent = this.requireAgent(session.agentId);
-    const message = this.repo.createMessage({
+    this.requireAgent(session.agentId);
+    return this.repo.createMessage({
       sessionId,
       role: "user",
       content: request.content,
       contentFormat: request.contentFormat ?? "markdown"
     });
-    const adapter = this.agents.get(agent.type);
-    await adapter.sendMessage(sessionId, request.content);
-    const log = this.repo.appendLog({
-      sessionId,
-      stream: "agent",
-      level: "info",
-      line: `${agent.name} 已接收消息`
-    });
-    return { message, log };
   }
 
   async stopSession(sessionId: string): Promise<void> {
@@ -93,7 +84,7 @@ export class SessionService {
   private requireSession(sessionId: string): Session {
     const session = this.repo.findSession(sessionId);
     if (!session) {
-      throw new Error(`会话不存在：${sessionId}`);
+      throw new Error(`Session does not exist: ${sessionId}`);
     }
     return session;
   }
@@ -101,7 +92,7 @@ export class SessionService {
   private requireAgent(agentId: string) {
     const agent = this.repo.findAgent(agentId);
     if (!agent) {
-      throw new Error(`Agent 未启用或不存在：${agentId}`);
+      throw new Error(`Agent does not exist or is disabled: ${agentId}`);
     }
     return agent;
   }

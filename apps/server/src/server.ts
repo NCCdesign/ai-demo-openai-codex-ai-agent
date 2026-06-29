@@ -223,29 +223,42 @@ export async function createServer() {
   app.post<{ Params: { id: string }; Body: { content: string; contentFormat?: "markdown" | "plain" } }>(
     "/api/sessions/:id/messages",
     async (request) => {
-      const result = await sessions.addUserMessage(request.params.id, request.body);
+      const message = sessions.createUserMessage(request.params.id, request.body);
+      const command = commands.createCommand({
+        type: "agent.continue",
+        sessionId: request.params.id,
+        source: "api",
+        userId: request.user.id,
+        payload: { text: request.body.content }
+      });
       io.to(`session:${request.params.id}`).emit("message:created", {
         type: "message:created",
-        message: result.message,
+        message,
         createdAt: new Date().toISOString()
       });
-      io.to(`session:${request.params.id}`).emit("log:line", {
-        type: "log:line",
-        log: result.log,
+      io.to(`session:${command.sessionId}`).emit("command:created", {
+        type: "command:created",
+        command,
         createdAt: new Date().toISOString()
       });
-      return { message: result.message };
+      commandWorker.wake();
+      return { message };
     }
   );
 
   app.post<{ Params: { id: string } }>("/api/sessions/:id/stop", async (request) => {
-    await sessions.stopSession(request.params.id);
-    io.to(`session:${request.params.id}`).emit("session:status_changed", {
-      type: "session:status_changed",
+    const command = commands.createCommand({
+      type: "agent.stop",
       sessionId: request.params.id,
-      status: "stopped",
+      source: "api",
+      userId: request.user.id
+    });
+    io.to(`session:${command.sessionId}`).emit("command:created", {
+      type: "command:created",
+      command,
       createdAt: new Date().toISOString()
     });
+    commandWorker.wake();
     return { ok: true };
   });
 
