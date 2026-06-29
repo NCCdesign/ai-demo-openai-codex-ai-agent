@@ -130,6 +130,14 @@ Supported commands:
 
 `/continue`, `/pause`, `/resume`, and `/stop` create Command Queue entries with `source = telegram`; Telegram does not directly control Agent Runtime.
 
+When enabled, Telegram also receives outbound notifications for:
+
+- Agent Runtime status changes.
+- Command created/status changes.
+- New session log lines.
+
+These notifications are best-effort. If Telegram delivery fails, the server logs a warning and keeps the Agent/API path running.
+
 ## Screenshots
 
 The screenshot runner tries a local Chromium-compatible browser in this order: `AIC_BROWSER_COMMAND`, Microsoft Edge, Google Chrome, then common Linux Chromium command names. Override the browser path when needed:

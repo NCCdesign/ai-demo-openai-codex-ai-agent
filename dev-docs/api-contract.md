@@ -124,6 +124,17 @@ Supported Telegram commands:
 
 Telegram status/log commands are read-only views over persisted runtime/log state. Telegram control commands create queued commands with `source = telegram`.
 
+Outbound Telegram notifications currently mirror:
+
+```text
+agent_runtime:status_changed
+command:created
+command:status_changed
+log:line
+```
+
+Telegram notification failures are logged by the server and must not interrupt API, Socket.IO, or Agent Runtime execution.
+
 ## Messages
 
 ```text

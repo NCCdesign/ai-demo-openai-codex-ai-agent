@@ -78,12 +78,21 @@ try {
   assert.equal(commandTypeForTelegramText("/continue hello"), "agent.continue");
   assert.equal(commandTypeForTelegramText("/unknown"), null);
 
+  await telegram.notifyLogLine({ id: 99, sessionId: session.id, stream: "stdout", level: "info", line: "hello", createdAt: new Date().toISOString() });
+  await telegram.notifyCommandStatus({ ...repo.findCommand(createdCommands[0] ?? "")!, status: "completed" });
+  await telegram.notifyRuntimeStatus(runtimes.findBySession(session.id)!);
+  assert.match(client.sent.at(-3)?.text ?? "", /Log/);
+  assert.match(client.sent.at(-2)?.text ?? "", /Command 状态更新/);
+  assert.match(client.sent.at(-1)?.text ?? "", /Agent Runtime 状态更新/);
+
   const disabled = new TelegramRemoteConsole(
     { botToken: null, allowedChatIds: ["123"], pollIntervalMs: 1000, requestTimeoutSeconds: 1 },
     remote,
     client
   );
   assert.equal(disabled.enabled, false);
+  await disabled.notifyLogLine({ id: 100, sessionId: session.id, stream: "stdout", level: "info", line: "disabled", createdAt: new Date().toISOString() });
+  assert.equal(/disabled/.test(client.sent.at(-1)?.text ?? ""), false);
 
   console.log("telegram remote console check passed");
 } finally {

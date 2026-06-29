@@ -1,4 +1,4 @@
-import type { CommandType } from "@aic/core";
+import type { AgentRuntimeInstance, Command, LogLine } from "@aic/core";
 import type { RemoteConsoleService } from "../services/remote-console.service.js";
 
 export interface TelegramRemoteConsoleConfig {
@@ -76,6 +76,34 @@ export class TelegramRemoteConsole {
     }
   }
 
+  async notifyRuntimeStatus(runtime: AgentRuntimeInstance): Promise<void> {
+    await this.broadcast([
+      "Agent Runtime 状态更新",
+      `Session: ${runtime.sessionId}`,
+      `状态: ${runtime.status}`,
+      `Heartbeat: ${runtime.heartbeatAt}`
+    ].join("\n"));
+  }
+
+  async notifyCommandStatus(command: Command): Promise<void> {
+    await this.broadcast(
+      [
+        "Command 状态更新",
+        `Command: ${command.id}`,
+        `类型: ${command.type}`,
+        `状态: ${command.status}`,
+        `Session: ${command.sessionId}`,
+        command.errorMessage ? `错误: ${command.errorMessage}` : null
+      ]
+        .filter((line): line is string => Boolean(line))
+        .join("\n")
+    );
+  }
+
+  async notifyLogLine(log: LogLine): Promise<void> {
+    await this.broadcast(`Log ${log.sessionId}\n[${log.id}] ${log.stream}${log.level ? `/${log.level}` : ""}: ${log.line}`);
+  }
+
   private async handleUpdate(update: TelegramUpdate): Promise<void> {
     const chatId = update.message?.chat.id === undefined ? null : String(update.message.chat.id);
     if (!chatId) {
@@ -113,6 +141,13 @@ export class TelegramRemoteConsole {
       default:
         return helpText();
     }
+  }
+
+  private async broadcast(text: string): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+    await Promise.all(this.config.allowedChatIds.map((chatId) => this.client.sendMessage({ chatId, text })));
   }
 }
 
@@ -183,7 +218,7 @@ function helpText(): string {
   ].join("\n");
 }
 
-export function commandTypeForTelegramText(text: string): CommandType | null {
+export function commandTypeForTelegramText(text: string): Command["type"] | null {
   switch (normalizeCommand(text.trim().split(/\s+/)[0] ?? "")) {
     case "/continue":
       return "agent.continue";

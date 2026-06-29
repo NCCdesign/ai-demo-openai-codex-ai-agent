@@ -214,7 +214,17 @@ Telegram getUpdates
   -> AgentAdapter receives control through normal Command Queue execution
 ```
 
-Telegram is not an Agent Provider and does not own business rules. It is disabled unless `AIC_TELEGRAM_BOT_TOKEN` and `AIC_TELEGRAM_ALLOWED_CHAT_IDS` are configured. The transport is allowlisted by chat id and currently supports `/status`, `/logs`, `/continue`, `/pause`, `/resume`, and `/stop`. Realtime token/tool streaming to Telegram is still a later Sprint task; this phase establishes the safe command/status/log boundary.
+Outbound Telegram sync:
+
+```text
+AgentRuntimeService status callback
+CommandWorker status callback
+SessionService log callback
+  -> TelegramRemoteConsole notify*
+  -> allowlisted Telegram chats
+```
+
+Telegram is not an Agent Provider and does not own business rules. It is disabled unless `AIC_TELEGRAM_BOT_TOKEN` and `AIC_TELEGRAM_ALLOWED_CHAT_IDS` are configured. The transport is allowlisted by chat id and currently supports `/status`, `/logs`, `/continue`, `/pause`, `/resume`, and `/stop`, plus outbound status/log/command notifications. Structured token/tool-call streaming to Telegram is still a later Sprint task; this phase establishes the safe command/status/log boundary.
 
 Log replay:
 

@@ -38,12 +38,22 @@ export async function createServer() {
   const dashboard = new DashboardService(repo);
   const notifications = new NotificationService(repo);
   const commands = new CommandService(repo);
+  let telegram: TelegramRemoteConsole | null = null;
+  const notifyTelegram = (send: (telegramConsole: TelegramRemoteConsole) => Promise<void>) => {
+    if (!telegram) {
+      return;
+    }
+    void send(telegram).catch((error) => {
+      app.log.warn({ error }, "telegram notification failed");
+    });
+  };
   const runtimes = new AgentRuntimeService(repo, (runtime) => {
     io.to(`session:${runtime.sessionId}`).emit("agent_runtime:status_changed", {
       type: "agent_runtime:status_changed",
       runtime,
       createdAt: new Date().toISOString()
     });
+    notifyTelegram((telegramConsole) => telegramConsole.notifyRuntimeStatus(runtime));
   });
   const fileChanges = new FileChangeService(repo);
   const screenshots = new ScreenshotService(repo, config.artifactRoot);
@@ -53,6 +63,7 @@ export async function createServer() {
       log,
       createdAt: new Date().toISOString()
     });
+    notifyTelegram((telegramConsole) => telegramConsole.notifyLogLine(log));
   });
   const commandWorker = new CommandWorker(repo, sessions, (command) => {
     io.to(`session:${command.sessionId}`).emit("command:status_changed", {
@@ -60,6 +71,7 @@ export async function createServer() {
       command,
       createdAt: new Date().toISOString()
     });
+    notifyTelegram((telegramConsole) => telegramConsole.notifyCommandStatus(command));
   });
   const publishCommandCreated = (command: Command) => {
     io.to(`session:${command.sessionId}`).emit("command:created", {
@@ -67,10 +79,11 @@ export async function createServer() {
       command,
       createdAt: new Date().toISOString()
     });
+    notifyTelegram((telegramConsole) => telegramConsole.notifyCommandStatus(command));
     commandWorker.wake();
   };
   const remoteConsole = new RemoteConsoleService(repo, runtimes, commands, publishCommandCreated);
-  const telegram = new TelegramRemoteConsole(config.telegram, remoteConsole);
+  telegram = new TelegramRemoteConsole(config.telegram, remoteConsole);
 
   app.addHook("preHandler", async (request, reply) => {
     if (request.url === "/api/auth/login" || request.url === "/api/health") {
@@ -351,11 +364,11 @@ export async function createServer() {
     start: async () => {
       runtimes.startHeartbeat();
       commandWorker.start();
-      telegram.start();
+      telegram?.start();
       await app.listen({ host: config.host, port: config.port });
     },
     close: async () => {
-      telegram.stop();
+      telegram?.stop();
       runtimes.stopHeartbeat();
       commandWorker.stop();
       await app.close();
