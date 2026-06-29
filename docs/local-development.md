@@ -107,6 +107,29 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 `heartbeatAt` is updated by the local daemon while the runtime is active. This is the baseline for future recovery and Telegram status views; full process restart/recovery is not implemented yet.
 
+## Telegram Remote Console
+
+Telegram is a Remote Console, not an Agent. It is disabled by default. To enable it, set:
+
+```powershell
+$env:AIC_TELEGRAM_BOT_TOKEN = "<bot-token>"
+$env:AIC_TELEGRAM_ALLOWED_CHAT_IDS = "<your-chat-id>"
+pnpm --filter @aic/server start
+```
+
+Supported commands:
+
+```text
+/status [sessionId]
+/logs [sessionId]
+/continue [text]
+/pause
+/resume
+/stop
+```
+
+`/continue`, `/pause`, `/resume`, and `/stop` create Command Queue entries with `source = telegram`; Telegram does not directly control Agent Runtime.
+
 ## Screenshots
 
 The screenshot runner tries a local Chromium-compatible browser in this order: `AIC_BROWSER_COMMAND`, Microsoft Edge, Google Chrome, then common Linux Chromium command names. Override the browser path when needed:

@@ -11,6 +11,12 @@ export interface ServerConfig {
   adminPassword: string;
   tokenSecret: string;
   workspacePath: string;
+  telegram: {
+    botToken: string | null;
+    allowedChatIds: string[];
+    pollIntervalMs: number;
+    requestTimeoutSeconds: number;
+  };
 }
 
 export function loadConfig(): ServerConfig {
@@ -23,8 +29,33 @@ export function loadConfig(): ServerConfig {
     adminEmail: process.env.AIC_ADMIN_EMAIL ?? "admin@example.local",
     adminPassword: process.env.AIC_ADMIN_PASSWORD ?? "change-me",
     tokenSecret: process.env.AIC_TOKEN_SECRET ?? "change-me-local-secret",
-    workspacePath: resolve(process.env.AIC_WORKSPACE_PATH ?? workspaceRoot)
+    workspacePath: resolve(process.env.AIC_WORKSPACE_PATH ?? workspaceRoot),
+    telegram: {
+      botToken: process.env.AIC_TELEGRAM_BOT_TOKEN?.trim() || null,
+      allowedChatIds: parseCsv(process.env.AIC_TELEGRAM_ALLOWED_CHAT_IDS),
+      pollIntervalMs: numberFromEnv("AIC_TELEGRAM_POLL_INTERVAL_MS", 3000),
+      requestTimeoutSeconds: numberFromEnv("AIC_TELEGRAM_REQUEST_TIMEOUT_SECONDS", 20)
+    }
   };
+}
+
+function parseCsv(value: string | undefined): string[] {
+  if (!value?.trim()) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function numberFromEnv(name: string, fallback: number): number {
+  const value = process.env[name];
+  if (!value) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function findWorkspaceRoot(): string {

@@ -1,6 +1,6 @@
 import fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
-import { isCommandSource, isCommandType } from "@aic/core";
+import { isCommandSource, isCommandType, type Command } from "@aic/core";
 import { AgentRegistry } from "@aic/agents";
 import { openDatabase, runMigrations, ConsoleRepository } from "@aic/db";
 import { loadConfig } from "./config/env.js";
@@ -14,6 +14,8 @@ import { NotificationService } from "./services/notification.service.js";
 import { CommandService } from "./services/command.service.js";
 import { CommandWorker } from "./services/command-worker.js";
 import { AgentRuntimeService } from "./services/agent-runtime.service.js";
+import { RemoteConsoleService } from "./services/remote-console.service.js";
+import { TelegramRemoteConsole } from "./remote/telegram-remote-console.js";
 import { attachSocketServer } from "./socket/socket-server.js";
 
 export async function createServer() {
@@ -59,6 +61,16 @@ export async function createServer() {
       createdAt: new Date().toISOString()
     });
   });
+  const publishCommandCreated = (command: Command) => {
+    io.to(`session:${command.sessionId}`).emit("command:created", {
+      type: "command:created",
+      command,
+      createdAt: new Date().toISOString()
+    });
+    commandWorker.wake();
+  };
+  const remoteConsole = new RemoteConsoleService(repo, runtimes, commands, publishCommandCreated);
+  const telegram = new TelegramRemoteConsole(config.telegram, remoteConsole);
 
   app.addHook("preHandler", async (request, reply) => {
     if (request.url === "/api/auth/login" || request.url === "/api/health") {
@@ -184,12 +196,7 @@ export async function createServer() {
       userId: request.user.id,
       payload: request.body.payload
     });
-    io.to(`session:${command.sessionId}`).emit("command:created", {
-      type: "command:created",
-      command,
-      createdAt: new Date().toISOString()
-    });
-    commandWorker.wake();
+    publishCommandCreated(command);
     return { command };
   });
 
@@ -252,12 +259,7 @@ export async function createServer() {
         message,
         createdAt: new Date().toISOString()
       });
-      io.to(`session:${command.sessionId}`).emit("command:created", {
-        type: "command:created",
-        command,
-        createdAt: new Date().toISOString()
-      });
-      commandWorker.wake();
+      publishCommandCreated(command);
       return { message };
     }
   );
@@ -269,12 +271,7 @@ export async function createServer() {
       source: "api",
       userId: request.user.id
     });
-    io.to(`session:${command.sessionId}`).emit("command:created", {
-      type: "command:created",
-      command,
-      createdAt: new Date().toISOString()
-    });
-    commandWorker.wake();
+    publishCommandCreated(command);
     return { ok: true };
   });
 
@@ -354,9 +351,11 @@ export async function createServer() {
     start: async () => {
       runtimes.startHeartbeat();
       commandWorker.start();
+      telegram.start();
       await app.listen({ host: config.host, port: config.port });
     },
     close: async () => {
+      telegram.stop();
       runtimes.stopHeartbeat();
       commandWorker.stop();
       await app.close();

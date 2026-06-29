@@ -109,6 +109,21 @@ Request:
 
 This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel`, then emits `command:status_changed`. Reserved command types without handlers fail explicitly instead of pretending to run.
 
+Telegram Remote Console uses the same command contract internally through `CommandService`; it must not call `SessionService`, `AgentRuntimeService`, or Agent adapters directly for control actions.
+
+Supported Telegram commands:
+
+```text
+/status [sessionId]
+/logs [sessionId]
+/continue [text]
+/pause
+/resume
+/stop
+```
+
+Telegram status/log commands are read-only views over persisted runtime/log state. Telegram control commands create queued commands with `source = telegram`.
+
 ## Messages
 
 ```text

@@ -144,7 +144,7 @@ packages/core -> no project packages
 User command:
 
 ```text
-Web / API / future Telegram command input
+Web / API / Telegram Remote Console command input
   -> POST /api/commands
   -> command service validates session/workspace/agent
   -> packages/db persists queued command and command event
@@ -201,6 +201,20 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 ```
 
 The current heartbeat is a local-daemon liveness baseline, not full process recovery. Recovery policy is persisted as `manual` until the supervisor/restart decision is implemented. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
+
+Telegram Remote Console:
+
+```text
+Telegram getUpdates
+  -> TelegramRemoteConsole transport
+  -> RemoteConsoleService
+  -> read runtime/log state from repository services
+  -> create control commands through CommandService
+  -> publish command:created and wake CommandWorker
+  -> AgentAdapter receives control through normal Command Queue execution
+```
+
+Telegram is not an Agent Provider and does not own business rules. It is disabled unless `AIC_TELEGRAM_BOT_TOKEN` and `AIC_TELEGRAM_ALLOWED_CHAT_IDS` are configured. The transport is allowlisted by chat id and currently supports `/status`, `/logs`, `/continue`, `/pause`, `/resume`, and `/stop`. Realtime token/tool streaming to Telegram is still a later Sprint task; this phase establishes the safe command/status/log boundary.
 
 Log replay:
 
