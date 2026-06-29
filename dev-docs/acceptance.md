@@ -41,6 +41,7 @@ Server/API:
 - Telegram Remote Console commands create Command Queue entries and do not directly call Agent adapters.
 - Telegram Remote Console rejects non-allowlisted chat IDs.
 - Telegram Remote Console receives outbound runtime status, command status, and log notifications without becoming the recovery source of truth.
+- Telegram Remote Console `/status` reads persisted Agent Stream events to show current step, current file, and current tool when available.
 - Command Queue execution records include session identity, task ID, command text, tool name, start/end timestamps, duration, error, retry count, and exit code when available.
 - Agent Stream events are persisted, replayable through REST, broadcast through Socket.IO, and selected stream types can be mirrored to Telegram without duplicating status/log notifications.
 - Codex process output can use provider-native JSONL when configured; Tool Call/Tool Result events must come from structured provider items, not arbitrary terminal text.
@@ -143,6 +144,7 @@ The current phase stops after the scaffold compiles, a core behavior check runs,
 - 2026-06-29: Agent Runtime startup reconciliation added: stale active runtime rows older than the heartbeat threshold are marked `failed`, clear `pid`, emit status callbacks, and keep recovery policy manual. This prevents ghost running status after daemon restart; automatic process restart is still future supervisor work.
 - 2026-06-29: Command execution audit fields added to `commands`: `task_id`, `command_text`, `tool_name`, `exit_code`, and `duration_ms`. Command responses, stream progress events, and Telegram command notifications now carry the persisted audit context needed for remote debugging.
 - 2026-06-29: Agent Adapter control SPI now includes explicit `pause` and `resume` methods. Command Worker checks prove `agent.pause`/`agent.resume` invoke semantic adapter controls rather than `sendMessage`; Codex process pause/resume fails explicitly on unsupported Windows process control instead of reporting fake success.
+- 2026-06-29: Telegram `/status` now summarizes persisted Agent Stream context in addition to runtime/log state: current step, current file, and current tool are derived server-side by `RemoteConsoleService`.
 - 2026-06-29: Telegram Remote Console baseline added behind allowlisted long polling: `/status` and `/logs` read persisted runtime/log state, `/continue`, `/pause`, `/resume`, and `/stop` create queued commands with `source = telegram`, and fake-client checks verify unauthorized chats are rejected without calling Agent adapters.
 - 2026-06-29: Telegram outbound sync added for runtime status, command status, and log lines. Fake-client checks verify allowlisted chats receive outbound updates and disabled Telegram sends nothing.
 - 2026-06-29: Structured Agent Stream baseline added: core event contract, SQLite `agent_stream_events`, `AgentStreamService`, `GET /api/sessions/:id/stream`, `agent_stream:event` Socket.IO event, and selected Telegram stream summaries for non-duplicated event types. Server smoke verifies command progress, runtime status, and control logs are replayable from the stream endpoint.

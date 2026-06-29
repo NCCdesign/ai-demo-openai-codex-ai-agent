@@ -1,4 +1,4 @@
-import type { Command, CommandType, LogLine, Session } from "@aic/core";
+import { describeAgentStreamEvent, type AgentStreamEvent, type Command, type CommandType, type LogLine, type Session } from "@aic/core";
 import type { ConsoleRepository } from "@aic/db";
 import type { CommandService } from "./command.service.js";
 import type { AgentRuntimeService } from "./agent-runtime.service.js";
@@ -26,6 +26,7 @@ export class RemoteConsoleService {
     const agent = this.repo.findAgent(session.agentId);
     const latestLogs = this.repo.listLogs(session.id, 0, 5).logs.slice(-5);
     const latestLog = latestLogs.at(-1);
+    const streamSummary = summarizeAgentStream(this.repo.listRecentAgentStreamEvents(session.id, 25));
 
     return [
       `Session: ${session.id}`,
@@ -34,6 +35,9 @@ export class RemoteConsoleService {
       `状态: ${runtime?.status ?? session.status}`,
       `Heartbeat: ${runtime?.heartbeatAt ?? "-"}`,
       `项目: ${workspace?.path ?? session.workspaceId}`,
+      `当前步骤: ${streamSummary.currentStep ?? "-"}`,
+      `当前文件: ${streamSummary.currentFile ?? "-"}`,
+      `Tool: ${streamSummary.currentTool ?? "-"}`,
       `最近日志: ${latestLog ? latestLog.line : "-"}`
     ].join("\n");
   }
@@ -86,4 +90,53 @@ export class RemoteConsoleService {
 function formatLogLine(log: LogLine): string {
   const level = log.level ? `/${log.level}` : "";
   return `[${log.id}] ${log.stream}${level}: ${log.line}`;
+}
+
+function summarizeAgentStream(events: AgentStreamEvent[]): {
+  currentStep: string | null;
+  currentFile: string | null;
+  currentTool: string | null;
+} {
+  let currentStep: string | null = null;
+  let currentFile: string | null = null;
+  let currentTool: string | null = null;
+
+  for (const event of events) {
+    if (event.type === "progress" || event.type === "status_change") {
+      currentStep = describeAgentStreamEvent(event.type, event.payload);
+    }
+    if (event.type === "tool_call") {
+      currentTool = describeAgentStreamEvent(event.type, event.payload);
+    }
+    const file = fileFromPayload(event.payload);
+    if (file) {
+      currentFile = file;
+    }
+  }
+
+  return { currentStep, currentFile, currentTool };
+}
+
+function fileFromPayload(payload: Record<string, unknown>): string | null {
+  for (const key of ["path", "file", "filePath", "oldPath"]) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  const raw = payload.raw;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const item = (raw as Record<string, unknown>).item;
+  if (!item || typeof item !== "object" || Array.isArray(item)) {
+    return null;
+  }
+  for (const key of ["path", "file", "file_path", "old_path"]) {
+    const value = (item as Record<string, unknown>)[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
 }

@@ -168,7 +168,7 @@ Supported Telegram commands:
 /stop
 ```
 
-Telegram status/log commands are read-only views over persisted runtime/log state. Telegram control commands create queued commands with `source = telegram`.
+Telegram status/log commands are read-only views over persisted runtime/log/stream state. `/status` includes current step, current file, and current tool context derived from recent `agent_stream_events` when available. Telegram control commands create queued commands with `source = telegram`.
 
 Outbound Telegram notifications currently mirror:
 

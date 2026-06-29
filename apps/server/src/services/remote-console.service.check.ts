@@ -34,10 +34,36 @@ try {
     sessionStatus: "running"
   });
   repo.appendLog({ sessionId: session.id, stream: "agent", level: "info", line: "Planning next step" });
+  repo.appendAgentStreamEvent({
+    sessionId: session.id,
+    type: "progress",
+    payload: { message: "正在修改首页布局" }
+  });
+  repo.appendAgentStreamEvent({
+    sessionId: session.id,
+    type: "tool_call",
+    payload: { name: "git diff" }
+  });
+  repo.appendAgentStreamEvent({
+    sessionId: session.id,
+    type: "tool_result",
+    payload: {
+      name: "file_change",
+      raw: {
+        item: {
+          type: "file_change",
+          path: "apps/web/app/dashboard/page.tsx"
+        }
+      }
+    }
+  });
   const createdCommands: string[] = [];
   const remote = new RemoteConsoleService(repo, runtimes, new CommandService(repo), (command) => createdCommands.push(command.id));
 
   assert.match(remote.getStatusText(), /状态: running/);
+  assert.match(remote.getStatusText(), /当前步骤: 正在修改首页布局/);
+  assert.match(remote.getStatusText(), /Tool: Tool call: git diff/);
+  assert.match(remote.getStatusText(), /当前文件: apps\/web\/app\/dashboard\/page.tsx/);
   assert.match(remote.getStatusText(), /Planning next step/);
   assert.match(remote.getRecentLogsText({ limit: 1 }), /Planning next step/);
 

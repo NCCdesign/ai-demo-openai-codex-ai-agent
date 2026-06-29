@@ -248,6 +248,8 @@ AgentStreamService event callback
 
 Telegram is not an Agent Provider and does not own business rules. It is disabled unless `AIC_TELEGRAM_BOT_TOKEN` and `AIC_TELEGRAM_ALLOWED_CHAT_IDS` are configured. The transport is allowlisted by chat id and currently supports `/status`, `/logs`, `/continue`, `/pause`, `/resume`, and `/stop`, plus outbound status/log/command notifications and selected stream summaries. SQLite and REST replay remain the recovery source of truth.
 
+`/status` is a persisted runtime summary, not a terminal scrape. It reads the latest session/runtime/workspace/agent data, the latest logs, and recent `agent_stream_events` to show current step, current file, and current tool context when available. The stream summary is derived in `RemoteConsoleService`; the Telegram transport only formats and sends text.
+
 Log replay:
 
 ```text

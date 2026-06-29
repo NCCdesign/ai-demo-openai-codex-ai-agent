@@ -552,6 +552,15 @@ export class ConsoleRepository {
     return rows.map(mapAgentStreamEvent);
   }
 
+  listRecentAgentStreamEvents(sessionId: string, limit = 20): AgentStreamEvent[] {
+    const parsedLimit = Number.isFinite(limit) ? Math.trunc(limit) : 20;
+    const boundedLimit = Math.min(Math.max(parsedLimit, 1), 100);
+    const rows = this.db
+      .prepare("select * from agent_stream_events where session_id = ? order by id desc limit ?")
+      .all(sessionId, boundedLimit) as unknown as AgentStreamEventRow[];
+    return rows.map(mapAgentStreamEvent).reverse();
+  }
+
   private nextAgentStreamSequence(sessionId: string): number {
     const row = this.db
       .prepare("select coalesce(max(sequence), 0) + 1 as next_sequence from agent_stream_events where session_id = ?")
