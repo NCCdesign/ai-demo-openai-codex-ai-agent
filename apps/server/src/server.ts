@@ -1,5 +1,6 @@
 import fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import { isCommandSource, isCommandType } from "@aic/core";
 import { AgentRegistry } from "@aic/agents";
 import { openDatabase, runMigrations, ConsoleRepository } from "@aic/db";
 import { loadConfig } from "./config/env.js";
@@ -10,6 +11,7 @@ import { FileChangeService } from "./services/file-change.service.js";
 import { ScreenshotService } from "./services/screenshot.service.js";
 import { DashboardService } from "./services/dashboard.service.js";
 import { NotificationService } from "./services/notification.service.js";
+import { CommandService } from "./services/command.service.js";
 import { attachSocketServer } from "./socket/socket-server.js";
 
 export async function createServer() {
@@ -31,6 +33,7 @@ export async function createServer() {
   const io = attachSocketServer(app, auth);
   const dashboard = new DashboardService(repo);
   const notifications = new NotificationService(repo);
+  const commands = new CommandService(repo);
   const fileChanges = new FileChangeService(repo);
   const screenshots = new ScreenshotService(repo, config.artifactRoot);
   const sessions = new SessionService(repo, new AgentRegistry(), (log) => {
@@ -128,6 +131,50 @@ export async function createServer() {
   app.get("/api/notifications", async (request) => ({
     notifications: notifications.listForUser(request.user.id)
   }));
+
+  app.get<{ Querystring: { sessionId?: string; limit?: string } }>("/api/commands", async (request) => ({
+    commands: commands.listCommands({
+      sessionId: request.query.sessionId,
+      limit: Number(request.query.limit ?? 50)
+    })
+  }));
+
+  app.post<{
+    Body: {
+      type?: string;
+      sessionId?: string;
+      source?: "ui" | "api" | "telegram" | "system";
+      payload?: Record<string, unknown>;
+    };
+  }>("/api/commands", async (request, reply) => {
+    if (!isCommandType(request.body?.type) || !request.body?.sessionId) {
+      return reply.code(400).send({ code: "invalid_command", message: "Command type and sessionId are required." });
+    }
+    if (request.body.source && !isCommandSource(request.body.source)) {
+      return reply.code(400).send({ code: "invalid_command_source", message: "Command source is invalid." });
+    }
+    const command = commands.createCommand({
+      type: request.body.type,
+      sessionId: request.body.sessionId,
+      source: request.body.source ?? "api",
+      userId: request.user.id,
+      payload: request.body.payload
+    });
+    io.to(`session:${command.sessionId}`).emit("command:created", {
+      type: "command:created",
+      command,
+      createdAt: new Date().toISOString()
+    });
+    return { command };
+  });
+
+  app.get<{ Params: { id: string } }>("/api/commands/:id", async (request, reply) => {
+    const command = commands.getCommand(request.params.id);
+    if (!command) {
+      return reply.code(404).send({ code: "not_found", message: "Command does not exist." });
+    }
+    return { command };
+  });
 
   app.post("/api/notifications/test", async (request) => {
     const notification = notifications.createTestNotification(request.user.id);

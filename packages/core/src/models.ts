@@ -16,6 +16,33 @@ export type SessionStatus = AgentStatus;
 
 export type TaskStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
+export const commandTypes = [
+  "agent.continue",
+  "agent.pause",
+  "agent.resume",
+  "agent.stop",
+  "agent.cancel",
+  "agent.restart",
+  "agent.screenshot",
+  "workspace.test.run",
+  "workspace.deploy.run"
+] as const;
+
+export type CommandType = (typeof commandTypes)[number];
+
+export type CommandStatus =
+  | "queued"
+  | "running"
+  | "waiting_for_user"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "timed_out";
+
+export const commandSources = ["ui", "api", "telegram", "system"] as const;
+
+export type CommandSource = (typeof commandSources)[number];
+
 export type MessageRole = "user" | "assistant" | "system" | "agent";
 
 export type ContentFormat = "markdown" | "plain";
@@ -88,6 +115,25 @@ export interface Task {
   content: string;
   status: TaskStatus;
   createdAt: string;
+  completedAt: string | null;
+}
+
+export interface Command {
+  id: string;
+  type: CommandType;
+  status: CommandStatus;
+  source: CommandSource;
+  sessionId: string;
+  workspaceId: string;
+  agentId: string;
+  userId: string | null;
+  payload: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  retryCount: number;
+  createdAt: string;
+  startedAt: string | null;
   completedAt: string | null;
 }
 

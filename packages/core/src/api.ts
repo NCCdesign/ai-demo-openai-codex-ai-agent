@@ -2,6 +2,9 @@ import type {
   Agent,
   Artifact,
   AuthToken,
+  Command,
+  CommandSource,
+  CommandType,
   ContentFormat,
   FileChange,
   LogLine,
@@ -94,6 +97,21 @@ export interface SessionListItem {
 export interface CreateMessageRequest {
   content: string;
   contentFormat?: ContentFormat;
+}
+
+export interface CreateCommandRequest {
+  type: CommandType;
+  sessionId: string;
+  source?: CommandSource;
+  payload?: Record<string, unknown>;
+}
+
+export interface CommandResponse {
+  command: Command;
+}
+
+export interface CommandsResponse {
+  commands: Command[];
 }
 
 export interface ListLogsQuery {

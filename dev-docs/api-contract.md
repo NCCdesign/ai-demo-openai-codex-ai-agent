@@ -55,6 +55,49 @@ POST /api/sessions/:id/stop
 
 Session restart is reserved for a later lifecycle policy. MVP supports creating a new session and stopping an existing one.
 
+## Commands
+
+```text
+GET  /api/commands?sessionId=:sessionId&limit=50
+POST /api/commands
+GET  /api/commands/:id
+```
+
+`POST /api/commands` is the single server-side entry point for control commands. UI, future Telegram remote console, and API clients create command records instead of directly controlling Agent Runtime.
+
+Initial command types:
+
+```text
+agent.continue
+agent.pause
+agent.resume
+agent.stop
+agent.cancel
+agent.restart
+agent.screenshot
+workspace.test.run
+workspace.deploy.run
+```
+
+Initial command status values:
+
+```text
+queued | running | waiting_for_user | completed | failed | cancelled | timed_out
+```
+
+Request:
+
+```json
+{
+  "type": "agent.continue",
+  "sessionId": "ses_x",
+  "source": "api",
+  "payload": {}
+}
+```
+
+This API currently persists queued commands and emits `command:created`. Command worker execution is the next implementation layer; HTTP routes must not bypass the queue.
+
 ## Messages
 
 ```text
@@ -133,6 +176,7 @@ dashboard:update
 session:created
 session:status_changed
 message:created
+command:created
 log:line
 file_change:created
 screenshot:created

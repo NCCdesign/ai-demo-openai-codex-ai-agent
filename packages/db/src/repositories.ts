@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SQLInputValue } from "node:sqlite";
 import type { DashboardResponse, LogsResponse, SessionDetailResponse, SessionListItem } from "@aic/core";
-import type { Agent, Artifact, ArtifactType, ContentFormat, FileChange, FileChangeType, LogLevel, LogLine, LogStream, Message, Notification, NotificationStatus, NotificationType, Session, SessionStatus, Workspace } from "@aic/core";
+import type { Agent, Artifact, ArtifactType, Command, CommandSource, CommandStatus, CommandType, ContentFormat, FileChange, FileChangeType, LogLevel, LogLine, LogStream, Message, Notification, NotificationStatus, NotificationType, Session, SessionStatus, Workspace } from "@aic/core";
 import type { DbClient } from "./client.js";
 
 const now = () => new Date().toISOString();
@@ -212,6 +212,95 @@ export class ConsoleRepository {
       )
       .run(message.id, message.sessionId, message.role, message.content, message.contentFormat, message.createdAt);
     return message;
+  }
+
+  createCommand(input: {
+    type: CommandType;
+    source: CommandSource;
+    sessionId: string;
+    workspaceId: string;
+    agentId: string;
+    userId: string | null;
+    payload?: Record<string, unknown>;
+  }): Command {
+    const command: Command = {
+      id: id("cmd"),
+      type: input.type,
+      status: "queued",
+      source: input.source,
+      sessionId: input.sessionId,
+      workspaceId: input.workspaceId,
+      agentId: input.agentId,
+      userId: input.userId,
+      payload: input.payload ?? {},
+      result: null,
+      errorCode: null,
+      errorMessage: null,
+      retryCount: 0,
+      createdAt: now(),
+      startedAt: null,
+      completedAt: null
+    };
+    this.db
+      .prepare(
+        `insert into commands (
+          id, type, status, source, session_id, workspace_id, agent_id, user_id,
+          payload_json, result_json, error_code, error_message, retry_count,
+          created_at, started_at, completed_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        command.id,
+        command.type,
+        command.status,
+        command.source,
+        command.sessionId,
+        command.workspaceId,
+        command.agentId,
+        command.userId,
+        JSON.stringify(command.payload),
+        null,
+        null,
+        null,
+        command.retryCount,
+        command.createdAt,
+        command.startedAt,
+        command.completedAt
+      );
+    this.appendCommandEvent(command.id, "command.created", { status: command.status, type: command.type });
+    return command;
+  }
+
+  findCommand(commandId: string): Command | null {
+    const row = this.db.prepare("select * from commands where id = ?").get(commandId);
+    return row ? mapCommand(row as unknown as CommandRow) : null;
+  }
+
+  listCommands(input: { sessionId?: string; status?: CommandStatus; limit?: number } = {}): Command[] {
+    const parsedLimit = Number.isFinite(input.limit) ? Math.trunc(input.limit ?? 50) : 50;
+    const boundedLimit = Math.min(Math.max(parsedLimit, 1), 200);
+    const clauses: string[] = [];
+    const params: SQLInputValue[] = [];
+    if (input.sessionId) {
+      clauses.push("session_id = ?");
+      params.push(input.sessionId);
+    }
+    if (input.status) {
+      clauses.push("status = ?");
+      params.push(input.status);
+    }
+    params.push(boundedLimit);
+    const where = clauses.length ? `where ${clauses.join(" and ")}` : "";
+    const rows = this.db
+      .prepare(`select * from commands ${where} order by created_at desc limit ?`)
+      .all(...params) as unknown as CommandRow[];
+    return rows.map(mapCommand);
+  }
+
+  appendCommandEvent(commandId: string, type: string, payload: Record<string, unknown>): void {
+    this.db
+      .prepare("insert into command_events (command_id, type, payload_json, created_at) values (?, ?, ?, ?)")
+      .run(commandId, type, JSON.stringify(payload), now());
   }
 
   listMessages(sessionId: string): Message[] {
@@ -496,6 +585,25 @@ interface MessageRow {
   created_at: string;
 }
 
+interface CommandRow {
+  id: string;
+  type: CommandType;
+  status: CommandStatus;
+  source: CommandSource;
+  session_id: string;
+  workspace_id: string;
+  agent_id: string;
+  user_id: string | null;
+  payload_json: string;
+  result_json: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  retry_count: number;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
 interface LogRow {
   id: number;
   session_id: string;
@@ -628,6 +736,27 @@ function mapMessage(row: MessageRow): Message {
     content: row.content,
     contentFormat: row.content_format,
     createdAt: row.created_at
+  };
+}
+
+function mapCommand(row: CommandRow): Command {
+  return {
+    id: row.id,
+    type: row.type,
+    status: row.status,
+    source: row.source,
+    sessionId: row.session_id,
+    workspaceId: row.workspace_id,
+    agentId: row.agent_id,
+    userId: row.user_id,
+    payload: JSON.parse(row.payload_json) as Record<string, unknown>,
+    result: row.result_json ? (JSON.parse(row.result_json) as Record<string, unknown>) : null,
+    errorCode: row.error_code,
+    errorMessage: row.error_message,
+    retryCount: row.retry_count,
+    createdAt: row.created_at,
+    startedAt: row.started_at,
+    completedAt: row.completed_at
   };
 }
 

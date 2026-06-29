@@ -1,5 +1,43 @@
 import type { DbClient } from "./client.js";
 
+const commandQueueSql = `
+  create table if not exists commands (
+    id text primary key,
+    type text not null,
+    status text not null,
+    source text not null,
+    session_id text not null,
+    workspace_id text not null,
+    agent_id text not null,
+    user_id text,
+    payload_json text not null,
+    result_json text,
+    error_code text,
+    error_message text,
+    retry_count integer not null,
+    created_at text not null,
+    started_at text,
+    completed_at text,
+    foreign key (session_id) references sessions(id) on delete cascade,
+    foreign key (workspace_id) references workspaces(id),
+    foreign key (agent_id) references agents(id),
+    foreign key (user_id) references users(id)
+  );
+
+  create table if not exists command_events (
+    id integer primary key autoincrement,
+    command_id text not null,
+    type text not null,
+    payload_json text not null,
+    created_at text not null,
+    foreign key (command_id) references commands(id) on delete cascade
+  );
+
+  create index if not exists idx_commands_session_created on commands(session_id, created_at);
+  create index if not exists idx_commands_status_created on commands(status, created_at);
+  create index if not exists idx_command_events_command_id on command_events(command_id, id);
+`;
+
 const migrations = [
   {
     id: "001_initial_schema",
@@ -144,12 +182,18 @@ const migrations = [
         foreign key (session_id) references sessions(id) on delete set null
       );
 
+      ${commandQueueSql}
+
       create index if not exists idx_messages_session_created on messages(session_id, created_at);
       create index if not exists idx_logs_session_id_id on logs(session_id, id);
       create index if not exists idx_file_changes_session_created on file_changes(session_id, created_at);
       create index if not exists idx_artifacts_session_created on artifacts(session_id, created_at);
       create index if not exists idx_events_session_id on events(session_id, id);
     `
+  },
+  {
+    id: "002_command_queue",
+    sql: commandQueueSql
   }
 ];
 

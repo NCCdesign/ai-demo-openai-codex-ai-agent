@@ -125,6 +125,33 @@ events (
   payload_json text not null,
   created_at text not null
 );
+
+commands (
+  id text primary key,
+  type text not null,
+  status text not null,
+  source text not null,
+  session_id text not null,
+  workspace_id text not null,
+  agent_id text not null,
+  user_id text,
+  payload_json text not null,
+  result_json text,
+  error_code text,
+  error_message text,
+  retry_count integer not null,
+  created_at text not null,
+  started_at text,
+  completed_at text
+);
+
+command_events (
+  id integer primary key autoincrement,
+  command_id text not null,
+  type text not null,
+  payload_json text not null,
+  created_at text not null
+);
 ```
 
 ## Status Values
@@ -159,10 +186,21 @@ Notification:
 pending | delivered | failed | muted
 ```
 
+Command:
+
+```text
+queued | running | waiting_for_user | completed | failed | cancelled | timed_out
+```
+
+Command source:
+
+```text
+ui | api | telegram | system
+```
+
 ## Migration Rules
 
 - Migrations live in `packages/db/src/migrations`.
 - Repository methods are the only write path from services to tables.
 - Do not create tables inside HTTP handlers or UI code.
 - Schema changes require updating this document and at least one relevant check.
-
