@@ -18,6 +18,14 @@
 
 ## Evidence Plan
 
+当前 Sprint 真实链路门禁：
+
+- 必须通过 `AIC_TELEGRAM_BOT_TOKEN` 和 `AIC_TELEGRAM_ALLOWED_CHAT_IDS` 配置真实 Telegram 凭据。
+- 真实 allowlisted Telegram chat 必须发送 `/status`、`/logs`、`/continue`、`/pause`、`/resume`、`/stop`。
+- 服务端证据必须显示这些控制命令以 `source = telegram` 持久化。
+- Runtime 证据必须显示 Codex-backed 状态随 continue/pause/resume/stop 变化。
+- Fake-client Telegram 检查是有价值的回归门禁，但不能替代真实 Telegram 验收。
+
 Docs-only changes:
 
 - Read back changed docs.
@@ -107,7 +115,15 @@ Stop and ask for a product decision before:
 - Adding a plugin marketplace.
 - Letting an Agent operate outside registered workspace boundaries.
 
-The current phase stops after the scaffold compiles, a core behavior check runs, and server/web skeletons are ready for module work.
+当前 Sprint 只在真实 Agent Runtime 远程控制闭环被证明后停止：
+
+- NCC AI OS 能在工作站本地启动。
+- Codex Agent 能通过 Command Queue 启动和控制。
+- Telegram 能从真实 allowlisted chat 读取持久化 status/log/stream context。
+- Telegram 命令能创建 `source = telegram` 的 queued commands。
+- Continue、pause、resume、stop 能在不绕过 Queue 的情况下影响 Codex-backed Runtime。
+- Code gates 和 guardrail checks 通过。
+- 证据写入本文件。
 
 ## Evidence Log
 
@@ -159,10 +175,11 @@ The current phase stops after the scaffold compiles, a core behavior check runs,
 - 2026-06-29: Runtime control hardening added: Adapter status callbacks can carry process metadata, `SessionService` persists running `pid` into `agent_runtime_instances`, terminal runtime states clear stale `pid`, Windows stop terminates the child process tree, and server shutdown waits for daemon-owned Agent child processes to exit before closing SQLite. Target checks passed for runtime process control, Codex adapter control, Command Queue sequence, Telegram fake-client queueing, and server shutdown.
 - 2026-06-29: Live Codex API Command Queue smoke passed on Windows with `C:\Users\USER\.codex\.sandbox-bin\codex.exe`: `agent.continue` started a real Codex `exec --json` process and populated runtime `pid`; `agent.pause` moved runtime to `waiting`; `agent.resume` moved runtime back to `running`; `agent.stop` completed with final runtime `cancelled` and `pid = null`. Evidence session/commands from the temporary smoke: session `ses_3a1b99066acf40f686584e368559334e`, continue `cmd_2f7ff25a9b294a8ea2cc37fc2608ebd0`, pause `cmd_f2ca9bbafb534accb6fdaa3589def22d`, resume `cmd_55db135889b441689bbdf2a0155e7ab6`, stop `cmd_2765dd638ec74a09b811f2726299267b`.
 - 2026-06-29: Real Telegram end-to-end delivery remains unverified because `AIC_TELEGRAM_BOT_TOKEN` and `AIC_TELEGRAM_ALLOWED_CHAT_IDS` were not configured in the current environment. Fake-client checks cover allowlist rejection, `/status`, `/logs`, `/continue`, `/pause`, `/resume`, `/stop` queue creation, and outbound notification formatting, but Sprint completion still requires real Telegram credentials/device evidence.
+- 2026-06-30: 产品命名漂移锁已刷新：正式产品名保持为 **NCC AI Development OS**（`NCC AI OS`），并明确拒绝 `Codex Dashboard` 作为产品定位。当前环境仍没有 `AIC_TELEGRAM_BOT_TOKEN` 或 `AIC_TELEGRAM_ALLOWED_CHAT_IDS`，所以真实 Telegram Sprint 验收仍被阻塞。
 
-## Current Phase Acceptance
+## 历史 Bootstrap 验收
 
-The current bootstrap/scaffold phase is acceptable when:
+Bootstrap/scaffold 阶段曾以下列条件验收：
 
 - The required docs exist and are indexed.
 - The monorepo has installable package manifests.
