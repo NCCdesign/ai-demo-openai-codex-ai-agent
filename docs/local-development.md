@@ -105,7 +105,7 @@ Runtime status values are provider-neutral:
 idle | planning | running | waiting | tool_calling | completed | failed | cancelled
 ```
 
-`heartbeatAt` is updated by the local daemon while the runtime is active. This is the baseline for future recovery and Telegram status views; full process restart/recovery is not implemented yet.
+`heartbeatAt` is updated by the local daemon while the runtime is active. On server start, stale active runtime rows are marked `failed` with a manual-recovery error instead of staying as ghost running sessions. This is the baseline for future recovery and Telegram status views; full process restart/recovery is not implemented yet.
 
 ## Agent Stream Replay
 

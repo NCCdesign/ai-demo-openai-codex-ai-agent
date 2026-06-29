@@ -76,6 +76,14 @@ try {
   runtimes.stopHeartbeat();
   assert.equal(runtimes.findBySession(staleSession.id)?.heartbeatAt, staleRuntime.heartbeatAt);
 
+  const recovered = runtimes.reconcileStaleInstances(0);
+  assert.equal(recovered.length, 1);
+  assert.equal(recovered[0]?.status, "failed");
+  assert.equal(recovered[0]?.pid, null);
+  assert.match(recovered[0]?.lastError ?? "", /Runtime heartbeat stale/);
+  assert.equal(runtimes.findBySession(staleSession.id)?.status, "failed");
+  assert.deepEqual(statusEvents, ["running", "cancelled", "failed"]);
+
   console.log("agent runtime service check passed");
 } finally {
   db.close();

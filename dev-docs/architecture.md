@@ -201,7 +201,7 @@ Runtime status is provider-neutral:
 idle | planning | running | waiting | tool_calling | completed | failed | cancelled
 ```
 
-The current heartbeat is a local-daemon liveness baseline, not full process recovery. Recovery policy is persisted as `manual` until the supervisor/restart decision is implemented. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
+The current heartbeat is a local-daemon liveness baseline, not full process recovery. Recovery policy is persisted as `manual` until the supervisor/restart decision is implemented. On daemon start, `AgentRuntimeService` reconciles stale active runtime rows whose heartbeat is older than the configured threshold by marking them `failed` with a manual-recovery error. This prevents mobile and Telegram clients from seeing ghost running sessions after a daemon restart. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
 
 Agent Stream events:
 

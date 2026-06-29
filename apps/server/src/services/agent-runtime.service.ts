@@ -51,6 +51,25 @@ export class AgentRuntimeService {
     return this.repo.listActiveAgentRuntimeInstances();
   }
 
+  reconcileStaleInstances(maxHeartbeatAgeMs = 60_000): AgentRuntimeInstance[] {
+    const cutoff = new Date(Date.now() - maxHeartbeatAgeMs).toISOString();
+    const staleRuntimes = this.repo
+      .listStaleAgentRuntimeInstances(cutoff)
+      .filter((runtime) => !this.ownedSessionIds.has(runtime.sessionId));
+    const reconciled: AgentRuntimeInstance[] = [];
+    for (const runtime of staleRuntimes) {
+      const updated = this.repo.updateAgentRuntimeStatus(runtime.sessionId, "failed", {
+        pid: null,
+        lastError: `Runtime heartbeat stale since ${runtime.heartbeatAt}; manual recovery required.`
+      });
+      if (updated) {
+        reconciled.push(updated);
+        this.onStatusChanged?.(updated);
+      }
+    }
+    return reconciled;
+  }
+
   startHeartbeat(intervalMs = 5000): void {
     if (this.heartbeatTimer) {
       return;

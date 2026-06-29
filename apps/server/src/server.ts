@@ -386,6 +386,10 @@ export async function createServer() {
   return {
     fastify: app,
     start: async () => {
+      const reconciled = runtimes.reconcileStaleInstances();
+      if (reconciled.length) {
+        app.log.warn({ count: reconciled.length }, "stale agent runtime instances reconciled");
+      }
       runtimes.startHeartbeat();
       commandWorker.start();
       telegram?.start();
