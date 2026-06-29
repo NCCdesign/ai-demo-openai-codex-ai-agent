@@ -160,14 +160,19 @@ commands (
   workspace_id text not null,
   agent_id text not null,
   user_id text,
+  task_id text,
+  command_text text,
+  tool_name text,
   payload_json text not null,
   result_json text,
   error_code text,
   error_message text,
+  exit_code integer,
   retry_count integer not null,
   created_at text not null,
   started_at text,
-  completed_at text
+  completed_at text,
+  duration_ms integer
 );
 
 command_events (
@@ -222,6 +227,8 @@ Command source:
 ```text
 ui | api | telegram | system
 ```
+
+Each command row is also the current execution audit record. It must keep session/workspace/agent identity, a stable `task_id`, normalized `command_text`, `tool_name`, start/end timestamps, `duration_ms`, error fields, retry count, and `exit_code` when the executor can determine one. Future multi-attempt retries may split this into `command_attempts`, but the MVP must not drop audit fields from command responses or stream events.
 
 Agent Runtime:
 

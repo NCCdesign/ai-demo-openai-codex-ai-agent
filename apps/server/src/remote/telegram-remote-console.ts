@@ -90,9 +90,13 @@ export class TelegramRemoteConsole {
       [
         "Command 状态更新",
         `Command: ${command.id}`,
+        `Task: ${command.taskId ?? "-"}`,
         `类型: ${command.type}`,
         `状态: ${command.status}`,
         `Session: ${command.sessionId}`,
+        command.toolName ? `Tool: ${command.toolName}` : null,
+        command.durationMs === null ? null : `耗时: ${command.durationMs}ms`,
+        command.exitCode === null ? null : `Exit Code: ${command.exitCode}`,
         command.errorMessage ? `错误: ${command.errorMessage}` : null
       ]
         .filter((line): line is string => Boolean(line))

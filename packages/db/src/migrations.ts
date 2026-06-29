@@ -246,6 +246,16 @@ const migrations = [
   {
     id: "004_agent_stream_events",
     sql: agentStreamSql
+  },
+  {
+    id: "005_command_execution_audit",
+    sql: `
+      alter table commands add column task_id text;
+      alter table commands add column command_text text;
+      alter table commands add column tool_name text;
+      alter table commands add column exit_code integer;
+      alter table commands add column duration_ms integer;
+    `
   }
 ];
 

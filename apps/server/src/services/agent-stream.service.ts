@@ -48,8 +48,13 @@ export class AgentStreamService {
       type: command.status === "failed" ? "error" : "progress",
       payload: {
         commandId: command.id,
+        taskId: command.taskId,
         commandType: command.type,
+        commandText: command.commandText,
+        toolName: command.toolName,
         status: command.status,
+        durationMs: command.durationMs,
+        exitCode: command.exitCode,
         errorCode: command.errorCode,
         message: command.errorMessage ?? `Command ${command.type} is ${command.status}`
       },

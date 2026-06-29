@@ -148,15 +148,17 @@ User command:
 Web / API / Telegram Remote Console command input
   -> POST /api/commands
   -> command service validates session/workspace/agent
-  -> packages/db persists queued command and command event
+  -> packages/db persists queued command, audit fields, and command event
   -> command worker marks command running
   -> session service calls AgentAdapter control method
   -> adapter/runtime emits logs/events
-  -> server persists command status/logs
+  -> server persists command status, duration, exit/error context, and logs
   -> Socket.IO broadcasts command/status/log updates
 ```
 
 `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel` now execute through the server-side command worker. `agent.screenshot`, `workspace.test.run`, and `workspace.deploy.run` are reserved command types and fail explicitly until their handlers are implemented. HTTP routes must not bypass the queue for new control actions.
+
+The `commands` row is the current execution audit record. It carries `task_id`, normalized `command_text`, `tool_name`, `started_at`, `completed_at`, `duration_ms`, retry/error fields, and `exit_code` when available. This keeps Telegram and mobile recovery views tied to persisted truth instead of transient worker memory. A future `command_attempts` table may be added when real multi-attempt retry semantics are implemented.
 
 The legacy-compatible chat and stop routes are thin adapters over the queue:
 

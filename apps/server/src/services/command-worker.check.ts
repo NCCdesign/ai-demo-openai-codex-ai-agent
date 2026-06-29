@@ -32,7 +32,11 @@ try {
 
   const pause = commands.createCommand({ type: "agent.pause", sessionId: session.id, source: "api", userId: "usr_admin" });
   await worker.processQueued();
-  assert.equal(repo.findCommand(pause.id)?.status, "completed");
+  const completedPause = repo.findCommand(pause.id);
+  assert.equal(completedPause?.status, "completed");
+  assert.ok(completedPause?.startedAt);
+  assert.ok(completedPause?.completedAt);
+  assert.notEqual(completedPause?.durationMs, null);
   assert.equal(repo.findSession(session.id)?.status, "waiting_for_user");
 
   const resume = commands.createCommand({ type: "agent.resume", sessionId: session.id, source: "api", userId: "usr_admin" });
@@ -49,6 +53,7 @@ try {
   await worker.processQueued();
   assert.equal(repo.findCommand(screenshot.id)?.status, "failed");
   assert.match(repo.findCommand(screenshot.id)?.errorMessage ?? "", /not implemented/);
+  assert.equal(repo.findCommand(screenshot.id)?.exitCode, 1);
 
   console.log("command worker check passed");
 } finally {

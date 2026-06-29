@@ -167,14 +167,19 @@ export interface Command {
   workspaceId: string;
   agentId: string;
   userId: string | null;
+  taskId: string | null;
+  commandText: string | null;
+  toolName: string | null;
   payload: Record<string, unknown>;
   result: Record<string, unknown> | null;
   errorCode: string | null;
   errorMessage: string | null;
+  exitCode: number | null;
   retryCount: number;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  durationMs: number | null;
 }
 
 export interface Message {

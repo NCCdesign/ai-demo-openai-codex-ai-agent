@@ -341,6 +341,8 @@ export class ConsoleRepository {
     userId: string | null;
     payload?: Record<string, unknown>;
   }): Command {
+    const payload = input.payload ?? {};
+    const commandTextValue = commandText(input.type, payload);
     const command: Command = {
       id: id("cmd"),
       type: input.type,
@@ -350,22 +352,27 @@ export class ConsoleRepository {
       workspaceId: input.workspaceId,
       agentId: input.agentId,
       userId: input.userId,
-      payload: input.payload ?? {},
+      taskId: id("tsk"),
+      commandText: commandTextValue,
+      toolName: commandTool(input.type),
+      payload,
       result: null,
       errorCode: null,
       errorMessage: null,
+      exitCode: null,
       retryCount: 0,
       createdAt: now(),
       startedAt: null,
-      completedAt: null
+      completedAt: null,
+      durationMs: null
     };
     this.db
       .prepare(
         `insert into commands (
           id, type, status, source, session_id, workspace_id, agent_id, user_id,
-          payload_json, result_json, error_code, error_message, retry_count,
-          created_at, started_at, completed_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          task_id, command_text, tool_name, payload_json, result_json, error_code,
+          error_message, exit_code, retry_count, created_at, started_at, completed_at, duration_ms
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         command.id,
@@ -376,16 +383,26 @@ export class ConsoleRepository {
         command.workspaceId,
         command.agentId,
         command.userId,
+        command.taskId,
+        command.commandText,
+        command.toolName,
         JSON.stringify(command.payload),
+        null,
         null,
         null,
         null,
         command.retryCount,
         command.createdAt,
         command.startedAt,
-        command.completedAt
+        command.completedAt,
+        command.durationMs
       );
-    this.appendCommandEvent(command.id, "command.created", { status: command.status, type: command.type });
+    this.appendCommandEvent(command.id, "command.created", {
+      status: command.status,
+      type: command.type,
+      taskId: command.taskId,
+      toolName: command.toolName
+    });
     return command;
   }
 
@@ -433,6 +450,7 @@ export class ConsoleRepository {
       result?: Record<string, unknown> | null;
       errorCode?: string | null;
       errorMessage?: string | null;
+      exitCode?: number | null;
       incrementRetry?: boolean;
     } = {}
   ): Command {
@@ -443,6 +461,7 @@ export class ConsoleRepository {
     transitionCommand(current.status, status);
     const startedAt = status === "running" && !current.startedAt ? now() : current.startedAt;
     const completedAt = ["completed", "failed", "cancelled", "timed_out"].includes(status) ? now() : current.completedAt;
+    const durationMs = completedAt && startedAt ? Math.max(0, Date.parse(completedAt) - Date.parse(startedAt)) : current.durationMs;
     const retryCount = current.retryCount + (input.incrementRetry ? 1 : 0);
     this.db
       .prepare(
@@ -451,9 +470,11 @@ export class ConsoleRepository {
              result_json = ?,
              error_code = ?,
              error_message = ?,
+             exit_code = ?,
              retry_count = ?,
              started_at = ?,
-             completed_at = ?
+             completed_at = ?,
+             duration_ms = ?
          where id = ?`
       )
       .run(
@@ -461,9 +482,11 @@ export class ConsoleRepository {
         input.result === undefined ? (current.result ? JSON.stringify(current.result) : null) : input.result ? JSON.stringify(input.result) : null,
         input.errorCode === undefined ? current.errorCode : input.errorCode,
         input.errorMessage === undefined ? current.errorMessage : input.errorMessage,
+        input.exitCode === undefined ? current.exitCode : input.exitCode,
         retryCount,
         startedAt,
         completedAt,
+        durationMs,
         commandId
       );
     const updated = this.findCommand(commandId);
@@ -473,6 +496,10 @@ export class ConsoleRepository {
     this.appendCommandEvent(commandId, "command.status_changed", {
       from: current.status,
       to: status,
+      taskId: updated.taskId,
+      toolName: updated.toolName,
+      durationMs: updated.durationMs,
+      exitCode: updated.exitCode,
       errorCode: updated.errorCode,
       errorMessage: updated.errorMessage
     });
@@ -837,14 +864,19 @@ interface CommandRow {
   workspace_id: string;
   agent_id: string;
   user_id: string | null;
+  task_id: string | null;
+  command_text: string | null;
+  tool_name: string | null;
   payload_json: string;
   result_json: string | null;
   error_code: string | null;
   error_message: string | null;
+  exit_code: number | null;
   retry_count: number;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  duration_ms: number | null;
 }
 
 interface AgentStreamEventRow {
@@ -1019,15 +1051,38 @@ function mapCommand(row: CommandRow): Command {
     workspaceId: row.workspace_id,
     agentId: row.agent_id,
     userId: row.user_id,
+    taskId: row.task_id,
+    commandText: row.command_text,
+    toolName: row.tool_name,
     payload: JSON.parse(row.payload_json) as Record<string, unknown>,
     result: row.result_json ? (JSON.parse(row.result_json) as Record<string, unknown>) : null,
     errorCode: row.error_code,
     errorMessage: row.error_message,
+    exitCode: row.exit_code,
     retryCount: row.retry_count,
     createdAt: row.created_at,
     startedAt: row.started_at,
-    completedAt: row.completed_at
+    completedAt: row.completed_at,
+    durationMs: row.duration_ms
   };
+}
+
+function commandText(type: CommandType, payload: Record<string, unknown>): string {
+  const text = payload.text;
+  if (typeof text === "string" && text.trim()) {
+    return text.trim();
+  }
+  return type;
+}
+
+function commandTool(type: CommandType): string {
+  if (type.startsWith("agent.")) {
+    return "agent";
+  }
+  if (type.startsWith("workspace.")) {
+    return "workspace";
+  }
+  return "system";
 }
 
 function mapAgentStreamEvent(row: AgentStreamEventRow): AgentStreamEvent {

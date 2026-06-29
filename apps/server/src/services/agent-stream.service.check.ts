@@ -44,6 +44,8 @@ try {
   assert.equal(token.logId, log.id);
   assert.equal(progress.type, "progress");
   assert.equal(progress.sequence, 2);
+  assert.equal(progress.payload.taskId, command.taskId);
+  assert.equal(progress.payload.toolName, "agent");
   assert.deepEqual(emitted, [token.id, progress.id]);
   assert.equal(stream.list({ sessionId: session.id }).events.length, 2);
   assert.equal(stream.list({ sessionId: session.id, cursor: token.id }).events[0]?.id, progress.id);

@@ -35,6 +35,11 @@ try {
   assert.equal(command.status, "queued");
   assert.equal(command.workspaceId, "wks_default");
   assert.equal(command.agentId, "agt_noop");
+  assert.match(command.taskId ?? "", /^tsk_/);
+  assert.equal(command.commandText, "Continue");
+  assert.equal(command.toolName, "agent");
+  assert.equal(command.exitCode, null);
+  assert.equal(command.durationMs, null);
   assert.equal(command.payload.text, "Continue");
   assert.equal(service.getCommand(command.id)?.id, command.id);
   assert.equal(service.listCommands({ sessionId: session.id })[0]?.id, command.id);

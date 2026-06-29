@@ -138,6 +138,23 @@ Request:
 
 This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel`, then emits `command:status_changed`. Reserved command types without handlers fail explicitly instead of pretending to run.
 
+Command responses include the execution audit fields needed for remote operation:
+
+```text
+taskId
+commandText
+toolName
+startedAt
+completedAt
+durationMs
+errorCode
+errorMessage
+retryCount
+exitCode
+```
+
+`taskId` is the current command execution audit identifier. It is not yet a full Workflow/Conversation task foreign key. `durationMs` is calculated by the repository when a command reaches a terminal state, so Telegram, Web, and Socket consumers must not infer it independently.
+
 Telegram Remote Console uses the same command contract internally through `CommandService`; it must not call `SessionService`, `AgentRuntimeService`, or Agent adapters directly for control actions.
 
 Supported Telegram commands:

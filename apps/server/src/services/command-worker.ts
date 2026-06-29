@@ -61,7 +61,8 @@ export class CommandWorker {
     } catch (error) {
       runningCommand = this.repo.updateCommandStatus(command.id, "failed", {
         errorCode: "command_execution_failed",
-        errorMessage: error instanceof Error ? error.message : String(error)
+        errorMessage: error instanceof Error ? error.message : String(error),
+        exitCode: 1
       });
       this.onCommandStatus?.(runningCommand);
     }
