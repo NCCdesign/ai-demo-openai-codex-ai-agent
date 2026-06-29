@@ -59,10 +59,16 @@ try {
   child.kill = () => true;
   child.pid = 234;
   const completedStatuses: string[] = [];
+  const completedSpawnInputs: Array<{ args: string[] }> = [];
   const completedAdapter = new CodexProcessAgentAdapter({
     command: "codex",
     startProcess: ((input: ProcessRunnerInput) => {
-      setImmediate(() => input.onExit?.(0, null));
+      completedSpawnInputs.push({ args: input.args ?? [] });
+      setImmediate(() => {
+        input.onStdout?.(JSON.stringify({ type: "thread.started", thread_id: "thread_check" }));
+        input.onStdout?.(JSON.stringify({ type: "turn.completed" }));
+        input.onExit?.(0, null);
+      });
       return {
         child,
         startError: null,
@@ -82,7 +88,10 @@ try {
   assert.equal(await completedAdapter.getStatus("ses_completed"), "running");
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(await completedAdapter.getStatus("ses_completed"), "completed");
-  assert.deepEqual(completedStatuses, ["waiting_for_user", "running", "completed"]);
+  await completedAdapter.sendMessage("ses_completed", "Continue again");
+  assert.deepEqual(completedSpawnInputs[1]?.args, ["exec", "resume", "--json", "--skip-git-repo-check", "thread_check", "Continue again"]);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(completedStatuses, ["waiting_for_user", "running", "completed", "running", "completed"]);
 
   if (process.platform === "win32") {
     assert.doesNotMatch(resolveDefaultCodexCommand(), /\\WindowsApps\\/i);

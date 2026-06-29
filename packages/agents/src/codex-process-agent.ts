@@ -19,6 +19,7 @@ interface CodexProcessSession {
   command: string;
   args: string[];
   lastPrompt: string | null;
+  threadId: string | null;
   onEvent?: StartAgentInput["onEvent"];
   onStreamEvent?: StartAgentInput["onStreamEvent"];
   onStatus?: StartAgentInput["onStatus"];
@@ -43,6 +44,7 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       command,
       args,
       lastPrompt: input.initialPrompt ?? null,
+      threadId: null,
       onEvent: input.onEvent,
       onStreamEvent: input.onStreamEvent,
       onStatus: input.onStatus
@@ -78,11 +80,15 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
     session.status = "running";
     const running = (this.options.startProcess ?? startProcess)({
       command: session.command,
-      args: [...session.args, message],
+      args: codexRunArgs(session, message),
       cwd: session.workspacePath,
       closeStdin: true,
       onStdout: (line) => {
         this.emitEvent(sessionId, "stdout", "info", line);
+        const threadId = codexThreadId(line);
+        if (threadId) {
+          session.threadId = threadId;
+        }
         const streamEvent = codexJsonlToStreamEvent(sessionId, line);
         if (streamEvent) {
           this.emitStreamEvent(sessionId, streamEvent);
@@ -218,6 +224,26 @@ function defaultCodexArgs(): string[] {
     return configured;
   }
   return ["exec", "--json", "--skip-git-repo-check", "--sandbox", "workspace-write"];
+}
+
+function codexRunArgs(session: Pick<CodexProcessSession, "args" | "threadId">, message: string): string[] {
+  if (!session.threadId) {
+    return [...session.args, message];
+  }
+  return ["exec", "resume", "--json", "--skip-git-repo-check", session.threadId, message];
+}
+
+function codexThreadId(line: string): string | null {
+  try {
+    const parsed = JSON.parse(line) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    const record = parsed as Record<string, unknown>;
+    return record.type === "thread.started" && typeof record.thread_id === "string" && record.thread_id.trim() ? record.thread_id.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 function nonEmpty(value: string | undefined): string | undefined {

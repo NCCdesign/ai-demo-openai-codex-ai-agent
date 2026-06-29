@@ -48,6 +48,7 @@ Server/API:
 - Command Queue execution records include session identity, task ID, command text, tool name, start/end timestamps, duration, error, retry count, and exit code when available.
 - Agent Stream events are persisted, replayable through REST, broadcast through Socket.IO, and selected stream types can be mirrored to Telegram without duplicating status/log notifications.
 - Codex process Continue uses provider-native `codex exec --json` by default; Tool Call/Tool Result events must come from structured provider items, not arbitrary terminal text.
+- Codex process Continue reuses the provider `thread_id` with `codex exec resume --json` after the first `thread.started` event so the same daemon-local Agent session does not reinitialize context on every Continue.
 - Socket handshake validates token.
 - Log write and replay works from persistence.
 
@@ -153,7 +154,8 @@ The current phase stops after the scaffold compiles, a core behavior check runs,
 - 2026-06-29: Telegram Remote Console baseline added behind allowlisted long polling: `/status` and `/logs` read persisted runtime/log state, `/continue`, `/pause`, `/resume`, and `/stop` create queued commands with `source = telegram`, and fake-client checks verify unauthorized chats are rejected without calling Agent adapters.
 - 2026-06-29: Telegram outbound sync added for runtime status, command status, and log lines. Fake-client checks verify allowlisted chats receive outbound updates and disabled Telegram sends nothing.
 - 2026-06-29: Structured Agent Stream baseline added: core event contract, SQLite `agent_stream_events`, `AgentStreamService`, `GET /api/sessions/:id/stream`, `agent_stream:event` Socket.IO event, and selected Telegram stream summaries for non-duplicated event types. Server smoke verifies command progress, runtime status, and control logs are replayable from the stream endpoint.
-- 2026-06-29: Codex process adapter maps JSONL stdout into core stream drafts for agent messages, command executions, file changes, plan updates, turn status, and errors. Non-JSON stdout remains a log only. The adapter now defaults to daemon-safe `codex exec --json` for each queued Continue command, avoids WindowsApps `Access is denied` CLI paths when a user-level Codex CLI is available, and live-smoked on Windows with a real Codex response `OK` plus completed session/runtime status. Multi-turn `codex exec resume` continuity remains future hardening.
+- 2026-06-29: Codex process adapter maps JSONL stdout into core stream drafts for agent messages, command executions, file changes, plan updates, turn status, and errors. Non-JSON stdout remains a log only. The adapter now defaults to daemon-safe `codex exec --json` for each queued Continue command, avoids WindowsApps `Access is denied` CLI paths when a user-level Codex CLI is available, and live-smoked on Windows with a real Codex response `OK` plus completed session/runtime status.
+- 2026-06-29: Codex daemon-local multi-turn continuity added: adapter captures `thread.started.thread_id` and later Continue uses `codex exec resume --json`. Live Windows smoke proved the same `thread_id` across two turns and the second turn recalled `NCC-RESUME-42`. Cross-daemon persisted provider thread recovery remains future hardening.
 
 ## Current Phase Acceptance
 

@@ -99,6 +99,8 @@ codex exec --json --skip-git-repo-check --sandbox workspace-write "<prompt>"
 
 The Codex adapter starts a child process in the workspace path for each queued Continue command and persists stdout, stderr, process errors, and process exit messages into session logs. JSONL stdout is mapped into durable Agent Stream events for token/progress/tool/status replay. If the CLI is missing or blocked by the OS, the session and runtime are marked `failed`, the session records a structured system error log, and the Agent Stream records an error event instead of pretending to run.
 
+After the first Codex run emits `thread.started`, later Continue commands in the same server process use `codex exec resume --json <thread_id> "<prompt>"`. This keeps the Agent conversation context across turns without running the interactive TUI inside the server daemon. Provider thread identity is not persisted across daemon restarts yet.
+
 ## Runtime Status
 
 Each started session now has a persisted Agent Runtime instance. After creating a session, query it with:
