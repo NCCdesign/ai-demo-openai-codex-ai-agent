@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@aic/core": ["packages/core/src/index.ts"],
+      "@aic/db": ["packages/db/src/index.ts"],
+      "@aic/runtime": ["packages/runtime/src/index.ts"],
+      "@aic/agents": ["packages/agents/src/index.ts"]
+    }
+  }
+}
+
