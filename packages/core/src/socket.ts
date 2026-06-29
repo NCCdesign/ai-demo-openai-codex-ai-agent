@@ -1,6 +1,7 @@
 import type {
   Artifact,
   AgentRuntimeInstance,
+  AgentStreamEvent,
   Command,
   FileChange,
   LogLine,
@@ -43,6 +44,7 @@ export type ServerEvent =
   | { type: "message:created"; message: Message; createdAt: string }
   | { type: "command:created"; command: Command; createdAt: string }
   | { type: "command:status_changed"; command: Command; createdAt: string }
+  | { type: "agent_stream:event"; event: AgentStreamEvent; createdAt: string }
   | { type: "log:line"; log: LogLine; createdAt: string }
   | { type: "file_change:created"; fileChange: FileChange; createdAt: string }
   | { type: "screenshot:created"; artifact: Artifact; createdAt: string }

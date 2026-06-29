@@ -81,9 +81,31 @@ try {
   await telegram.notifyLogLine({ id: 99, sessionId: session.id, stream: "stdout", level: "info", line: "hello", createdAt: new Date().toISOString() });
   await telegram.notifyCommandStatus({ ...repo.findCommand(createdCommands[0] ?? "")!, status: "completed" });
   await telegram.notifyRuntimeStatus(runtimes.findBySession(session.id)!);
-  assert.match(client.sent.at(-3)?.text ?? "", /Log/);
-  assert.match(client.sent.at(-2)?.text ?? "", /Command 状态更新/);
-  assert.match(client.sent.at(-1)?.text ?? "", /Agent Runtime 状态更新/);
+  await telegram.notifyStreamEvent({
+    id: 101,
+    sessionId: session.id,
+    type: "tool_call",
+    sequence: 3,
+    payload: { name: "git status" },
+    commandId: null,
+    logId: null,
+    createdAt: new Date().toISOString()
+  });
+  assert.match(client.sent.at(-4)?.text ?? "", /Log/);
+  assert.match(client.sent.at(-3)?.text ?? "", /Command 状态更新/);
+  assert.match(client.sent.at(-2)?.text ?? "", /Agent Runtime 状态更新/);
+  assert.match(client.sent.at(-1)?.text ?? "", /Tool call: git status/);
+  await telegram.notifyStreamEvent({
+    id: 102,
+    sessionId: session.id,
+    type: "status_change",
+    sequence: 4,
+    payload: { status: "running" },
+    commandId: null,
+    logId: null,
+    createdAt: new Date().toISOString()
+  });
+  assert.match(client.sent.at(-1)?.text ?? "", /Status: running/);
 
   const disabled = new TelegramRemoteConsole(
     { botToken: null, allowedChatIds: ["123"], pollIntervalMs: 1000, requestTimeoutSeconds: 1 },

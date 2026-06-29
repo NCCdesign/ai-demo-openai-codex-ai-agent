@@ -6,7 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "check": "tsx src/session-state-machine.check.ts && tsx src/command-state-machine.check.ts && tsx src/agent-runtime-state.check.ts",
+    "check": "tsx src/session-state-machine.check.ts && tsx src/command-state-machine.check.ts && tsx src/agent-runtime-state.check.ts && tsx src/agent-stream-event.check.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

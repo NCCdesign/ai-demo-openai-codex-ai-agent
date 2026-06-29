@@ -15,7 +15,11 @@ Build order:
 7. File change and Git summary services.
 8. Screenshot artifact service.
 9. PWA manifest and iPhone-first responsive polish.
-10. Startup/development documentation.
+10. Command Queue baseline for Agent control commands.
+11. Agent Runtime heartbeat/status baseline.
+12. Telegram Remote Console baseline over the Command Queue.
+13. Durable Agent Stream replay for status/progress/log events.
+14. Startup/development documentation.
 
 MVP intentionally postpones plugin marketplace, OAuth, Docker, CI/CD, terminal write access, and cloud hosting.
 

@@ -98,6 +98,17 @@ logs (
   created_at text not null
 );
 
+agent_stream_events (
+  id integer primary key autoincrement,
+  session_id text not null,
+  type text not null,
+  sequence integer not null,
+  payload_json text not null,
+  command_id text,
+  log_id integer,
+  created_at text not null
+);
+
 file_changes (
   id text primary key,
   session_id text not null,
@@ -225,6 +236,14 @@ none | manual | restart
 ```
 
 `agent_runtime_instances.session_id` is unique. The runtime row is the durable source for remote status views and recovery preparation; adapter in-memory handles are not recovery truth.
+
+Agent Stream event:
+
+```text
+token | tool_call | tool_result | progress | error | status_change
+```
+
+`agent_stream_events.sequence` is unique per session. `id` is the REST replay cursor; `sequence` is the session-local display/order value. `command_id` and `log_id` link stream events back to the command/log source when available.
 
 ## Migration Rules
 

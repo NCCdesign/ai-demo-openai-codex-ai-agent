@@ -107,6 +107,16 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 `heartbeatAt` is updated by the local daemon while the runtime is active. This is the baseline for future recovery and Telegram status views; full process restart/recovery is not implemented yet.
 
+## Agent Stream Replay
+
+Each session also has a durable Agent Stream. It normalizes runtime status, command progress, logs/tokens, and errors for mobile reconnects and remote consoles:
+
+```powershell
+curl.exe -H "Authorization: Bearer <token>" "http://127.0.0.1:4317/api/sessions/<session-id>/stream?cursor=0&limit=200"
+```
+
+The live Socket.IO event is `agent_stream:event`. Telegram receives selected stream summaries for event types not already covered by dedicated runtime, command, or log notifications.
+
 ## Telegram Remote Console
 
 Telegram is a Remote Console, not an Agent. It is disabled by default. To enable it, set:

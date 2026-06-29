@@ -1,6 +1,6 @@
 import fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
-import { isCommandSource, isCommandType, type Command } from "@aic/core";
+import { isCommandSource, isCommandType, type AgentStreamEvent, type Command } from "@aic/core";
 import { AgentRegistry } from "@aic/agents";
 import { openDatabase, runMigrations, ConsoleRepository } from "@aic/db";
 import { loadConfig } from "./config/env.js";
@@ -14,6 +14,7 @@ import { NotificationService } from "./services/notification.service.js";
 import { CommandService } from "./services/command.service.js";
 import { CommandWorker } from "./services/command-worker.js";
 import { AgentRuntimeService } from "./services/agent-runtime.service.js";
+import { AgentStreamService } from "./services/agent-stream.service.js";
 import { RemoteConsoleService } from "./services/remote-console.service.js";
 import { TelegramRemoteConsole } from "./remote/telegram-remote-console.js";
 import { attachSocketServer } from "./socket/socket-server.js";
@@ -47,6 +48,17 @@ export async function createServer() {
       app.log.warn({ error }, "telegram notification failed");
     });
   };
+  const publishStreamEvent = (event: AgentStreamEvent) => {
+    io.to(`session:${event.sessionId}`).emit("agent_stream:event", {
+      type: "agent_stream:event",
+      event,
+      createdAt: new Date().toISOString()
+    });
+    if (event.type === "tool_call" || event.type === "tool_result") {
+      notifyTelegram((telegramConsole) => telegramConsole.notifyStreamEvent(event));
+    }
+  };
+  const streams = new AgentStreamService(repo, publishStreamEvent);
   const runtimes = new AgentRuntimeService(repo, (runtime) => {
     io.to(`session:${runtime.sessionId}`).emit("agent_runtime:status_changed", {
       type: "agent_runtime:status_changed",
@@ -54,6 +66,7 @@ export async function createServer() {
       createdAt: new Date().toISOString()
     });
     notifyTelegram((telegramConsole) => telegramConsole.notifyRuntimeStatus(runtime));
+    streams.appendRuntimeStatus(runtime);
   });
   const fileChanges = new FileChangeService(repo);
   const screenshots = new ScreenshotService(repo, config.artifactRoot);
@@ -64,6 +77,7 @@ export async function createServer() {
       createdAt: new Date().toISOString()
     });
     notifyTelegram((telegramConsole) => telegramConsole.notifyLogLine(log));
+    streams.appendLog(log);
   });
   const commandWorker = new CommandWorker(repo, sessions, (command) => {
     io.to(`session:${command.sessionId}`).emit("command:status_changed", {
@@ -72,6 +86,7 @@ export async function createServer() {
       createdAt: new Date().toISOString()
     });
     notifyTelegram((telegramConsole) => telegramConsole.notifyCommandStatus(command));
+    streams.appendCommand(command);
   });
   const publishCommandCreated = (command: Command) => {
     io.to(`session:${command.sessionId}`).emit("command:created", {
@@ -80,6 +95,7 @@ export async function createServer() {
       createdAt: new Date().toISOString()
     });
     notifyTelegram((telegramConsole) => telegramConsole.notifyCommandStatus(command));
+    streams.appendCommand(command);
     commandWorker.wake();
   };
   const remoteConsole = new RemoteConsoleService(repo, runtimes, commands, publishCommandCreated);
@@ -176,6 +192,14 @@ export async function createServer() {
     }
     return { runtime };
   });
+
+  app.get<{ Params: { id: string }; Querystring: { cursor?: string; limit?: string } }>("/api/sessions/:id/stream", async (request) =>
+    streams.list({
+      sessionId: request.params.id,
+      cursor: Number(request.query.cursor ?? 0),
+      limit: Number(request.query.limit ?? 200)
+    })
+  );
 
   app.get("/api/notifications", async (request) => ({
     notifications: notifications.listForUser(request.user.id)

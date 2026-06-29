@@ -1,6 +1,7 @@
 import type {
   Agent,
   AgentRuntimeInstance,
+  AgentStreamEvent,
   Artifact,
   AuthToken,
   Command,
@@ -144,6 +145,11 @@ export interface MessagesResponse {
 
 export interface LogsResponse {
   logs: LogLine[];
+  nextCursor: number | null;
+}
+
+export interface AgentStreamEventsResponse {
+  events: AgentStreamEvent[];
   nextCursor: number | null;
 }
 

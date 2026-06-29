@@ -60,6 +60,26 @@ const agentRuntimeSql = `
   create index if not exists idx_agent_runtime_status_heartbeat on agent_runtime_instances(status, heartbeat_at);
 `;
 
+const agentStreamSql = `
+  create table if not exists agent_stream_events (
+    id integer primary key autoincrement,
+    session_id text not null,
+    type text not null,
+    sequence integer not null,
+    payload_json text not null,
+    command_id text,
+    log_id integer,
+    created_at text not null,
+    foreign key (session_id) references sessions(id) on delete cascade,
+    foreign key (command_id) references commands(id) on delete set null,
+    foreign key (log_id) references logs(id) on delete set null
+  );
+
+  create unique index if not exists idx_agent_stream_session_sequence on agent_stream_events(session_id, sequence);
+  create index if not exists idx_agent_stream_session_id on agent_stream_events(session_id, id);
+  create index if not exists idx_agent_stream_type_created on agent_stream_events(type, created_at);
+`;
+
 const migrations = [
   {
     id: "001_initial_schema",
@@ -206,6 +226,7 @@ const migrations = [
 
       ${commandQueueSql}
       ${agentRuntimeSql}
+      ${agentStreamSql}
 
       create index if not exists idx_messages_session_created on messages(session_id, created_at);
       create index if not exists idx_logs_session_id_id on logs(session_id, id);
@@ -221,6 +242,10 @@ const migrations = [
   {
     id: "003_agent_runtime_instances",
     sql: agentRuntimeSql
+  },
+  {
+    id: "004_agent_stream_events",
+    sql: agentStreamSql
   }
 ];
 

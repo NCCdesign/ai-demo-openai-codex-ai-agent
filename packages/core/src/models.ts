@@ -66,6 +66,17 @@ export type LogStream = "stdout" | "stderr" | "agent" | "system";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
+export const agentStreamEventTypes = [
+  "token",
+  "tool_call",
+  "tool_result",
+  "progress",
+  "error",
+  "status_change"
+] as const;
+
+export type AgentStreamEventType = (typeof agentStreamEventTypes)[number];
+
 export type FileChangeType = "added" | "modified" | "deleted" | "renamed";
 
 export type ArtifactType = "screenshot" | "log_bundle" | "diff" | "report";
@@ -181,6 +192,17 @@ export interface LogLine {
   stream: LogStream;
   level: LogLevel | null;
   line: string;
+  createdAt: string;
+}
+
+export interface AgentStreamEvent {
+  id: number;
+  sessionId: string;
+  type: AgentStreamEventType;
+  sequence: number;
+  payload: Record<string, unknown>;
+  commandId: string | null;
+  logId: number | null;
   createdAt: string;
 }
 

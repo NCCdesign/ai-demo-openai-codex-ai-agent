@@ -202,6 +202,21 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 The current heartbeat is a local-daemon liveness baseline, not full process recovery. Recovery policy is persisted as `manual` until the supervisor/restart decision is implemented. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
 
+Agent Stream events:
+
+```text
+AgentRuntimeService status callback
+CommandWorker status callback
+SessionService log callback
+  -> AgentStreamService
+  -> agent_stream_events table
+  -> agent_stream:event socket event
+  -> GET /api/sessions/:id/stream replay
+  -> selected TelegramRemoteConsole stream summary
+```
+
+`agent_stream_events` is the durable recovery stream for mobile reconnects and remote consoles. It currently normalizes runtime status changes, command progress, logs/tokens, and errors. `tool_call` and `tool_result` are first-class contract values, but built-in adapters must only emit them when they have a concrete tool name/result from the provider; a `tool_calling` runtime status alone remains a `status_change` event. Telegram receives stream summaries only for event types that are not already covered by dedicated runtime/command/log notifications, starting with `tool_call` and `tool_result`.
+
 Telegram Remote Console:
 
 ```text
@@ -220,11 +235,12 @@ Outbound Telegram sync:
 AgentRuntimeService status callback
 CommandWorker status callback
 SessionService log callback
+AgentStreamService event callback
   -> TelegramRemoteConsole notify*
   -> allowlisted Telegram chats
 ```
 
-Telegram is not an Agent Provider and does not own business rules. It is disabled unless `AIC_TELEGRAM_BOT_TOKEN` and `AIC_TELEGRAM_ALLOWED_CHAT_IDS` are configured. The transport is allowlisted by chat id and currently supports `/status`, `/logs`, `/continue`, `/pause`, `/resume`, and `/stop`, plus outbound status/log/command notifications. Structured token/tool-call streaming to Telegram is still a later Sprint task; this phase establishes the safe command/status/log boundary.
+Telegram is not an Agent Provider and does not own business rules. It is disabled unless `AIC_TELEGRAM_BOT_TOKEN` and `AIC_TELEGRAM_ALLOWED_CHAT_IDS` are configured. The transport is allowlisted by chat id and currently supports `/status`, `/logs`, `/continue`, `/pause`, `/resume`, and `/stop`, plus outbound status/log/command notifications and selected stream summaries. SQLite and REST replay remain the recovery source of truth.
 
 Log replay:
 

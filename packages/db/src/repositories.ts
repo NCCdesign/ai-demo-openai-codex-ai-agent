@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SQLInputValue } from "node:sqlite";
 import type { DashboardResponse, LogsResponse, SessionDetailResponse, SessionListItem } from "@aic/core";
-import { transitionCommand, type Agent, type AgentRuntimeInstance, type AgentRuntimeRecoverPolicy, type AgentRuntimeStatus, type Artifact, type ArtifactType, type Command, type CommandSource, type CommandStatus, type CommandType, type ContentFormat, type FileChange, type FileChangeType, type LogLevel, type LogLine, type LogStream, type Message, type Notification, type NotificationStatus, type NotificationType, type Session, type SessionStatus, type Workspace } from "@aic/core";
+import { transitionCommand, type Agent, type AgentRuntimeInstance, type AgentRuntimeRecoverPolicy, type AgentRuntimeStatus, type AgentStreamEvent, type AgentStreamEventType, type Artifact, type ArtifactType, type Command, type CommandSource, type CommandStatus, type CommandType, type ContentFormat, type FileChange, type FileChangeType, type LogLevel, type LogLine, type LogStream, type Message, type Notification, type NotificationStatus, type NotificationType, type Session, type SessionStatus, type Workspace } from "@aic/core";
 import type { DbClient } from "./client.js";
 
 const now = () => new Date().toISOString();
@@ -479,6 +479,59 @@ export class ConsoleRepository {
     return updated;
   }
 
+  appendAgentStreamEvent(input: {
+    sessionId: string;
+    type: AgentStreamEventType;
+    payload: Record<string, unknown>;
+    commandId?: string | null;
+    logId?: number | null;
+  }): AgentStreamEvent {
+    const createdAt = now();
+    const sequence = this.nextAgentStreamSequence(input.sessionId);
+    const result = this.db
+      .prepare(
+        `insert into agent_stream_events (session_id, type, sequence, payload_json, command_id, log_id, created_at)
+         values (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        input.sessionId,
+        input.type,
+        sequence,
+        JSON.stringify(input.payload),
+        input.commandId ?? null,
+        input.logId ?? null,
+        createdAt
+      );
+    return {
+      id: Number(result.lastInsertRowid),
+      sessionId: input.sessionId,
+      type: input.type,
+      sequence,
+      payload: input.payload,
+      commandId: input.commandId ?? null,
+      logId: input.logId ?? null,
+      createdAt
+    };
+  }
+
+  listAgentStreamEvents(input: { sessionId: string; cursor?: number; limit?: number }): AgentStreamEvent[] {
+    const parsedCursor = Number.isFinite(input.cursor) ? Math.trunc(input.cursor ?? 0) : 0;
+    const parsedLimit = Number.isFinite(input.limit) ? Math.trunc(input.limit ?? 200) : 200;
+    const cursor = Math.max(parsedCursor, 0);
+    const boundedLimit = Math.min(Math.max(parsedLimit, 1), 1000);
+    const rows = this.db
+      .prepare("select * from agent_stream_events where session_id = ? and id > ? order by id asc limit ?")
+      .all(input.sessionId, cursor, boundedLimit) as unknown as AgentStreamEventRow[];
+    return rows.map(mapAgentStreamEvent);
+  }
+
+  private nextAgentStreamSequence(sessionId: string): number {
+    const row = this.db
+      .prepare("select coalesce(max(sequence), 0) + 1 as next_sequence from agent_stream_events where session_id = ?")
+      .get(sessionId) as { next_sequence: number } | undefined;
+    return Number(row?.next_sequence ?? 1);
+  }
+
   listMessages(sessionId: string): Message[] {
     return this.db
       .prepare("select * from messages where session_id = ? order by created_at asc")
@@ -794,6 +847,17 @@ interface CommandRow {
   completed_at: string | null;
 }
 
+interface AgentStreamEventRow {
+  id: number;
+  session_id: string;
+  type: AgentStreamEventType;
+  sequence: number;
+  payload_json: string;
+  command_id: string | null;
+  log_id: number | null;
+  created_at: string;
+}
+
 interface LogRow {
   id: number;
   session_id: string;
@@ -963,6 +1027,19 @@ function mapCommand(row: CommandRow): Command {
     createdAt: row.created_at,
     startedAt: row.started_at,
     completedAt: row.completed_at
+  };
+}
+
+function mapAgentStreamEvent(row: AgentStreamEventRow): AgentStreamEvent {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    type: row.type,
+    sequence: row.sequence,
+    payload: JSON.parse(row.payload_json) as Record<string, unknown>,
+    commandId: row.command_id,
+    logId: row.log_id,
+    createdAt: row.created_at
   };
 }
 

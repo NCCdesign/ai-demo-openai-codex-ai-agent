@@ -49,6 +49,7 @@ GET  /api/sessions?limit=20
 POST /api/sessions
 GET  /api/sessions/:id
 GET  /api/sessions/:id/runtime
+GET  /api/sessions/:id/stream?cursor=0&limit=200
 POST /api/sessions/:id/stop
 ```
 
@@ -62,6 +63,34 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 
 This route is the current read path for future Telegram status views. It reads SQLite state; it does not inspect adapter memory.
 
+`GET /api/sessions/:id/stream` returns durable Agent Stream events for reconnect/replay. It uses the event row `id` as cursor and returns:
+
+```json
+{
+  "events": [
+    {
+      "id": 1,
+      "sessionId": "ses_x",
+      "type": "status_change",
+      "sequence": 1,
+      "payload": { "status": "running" },
+      "commandId": null,
+      "logId": null,
+      "createdAt": "2026-06-29T00:00:00.000Z"
+    }
+  ],
+  "nextCursor": 1
+}
+```
+
+Stream event types:
+
+```text
+token | tool_call | tool_result | progress | error | status_change
+```
+
+The current server emits `status_change` from runtime status, `progress` from command lifecycle, and `token`/`error` from persisted logs. `tool_call` and `tool_result` are reserved for concrete provider/tool events and must not be inferred from runtime status alone.
+
 Session restart is reserved for a later lifecycle policy. MVP supports creating a new session and stopping an existing one.
 
 ## Commands
@@ -72,7 +101,7 @@ POST /api/commands
 GET  /api/commands/:id
 ```
 
-`POST /api/commands` is the single server-side entry point for control commands. UI, future Telegram remote console, and API clients create command records instead of directly controlling Agent Runtime.
+`POST /api/commands` is the single server-side entry point for control commands. UI, Telegram Remote Console, and API clients create command records instead of directly controlling Agent Runtime.
 
 Compatibility routes such as `POST /api/sessions/:id/messages` and `POST /api/sessions/:id/stop` are also queue-backed: they persist the user-facing message or request, create the matching command, and wake the command worker. They must not call Agent adapters directly.
 
@@ -131,6 +160,7 @@ agent_runtime:status_changed
 command:created
 command:status_changed
 log:line
+agent_stream:event
 ```
 
 Telegram notification failures are logged by the server and must not interrupt API, Socket.IO, or Agent Runtime execution.
@@ -216,6 +246,7 @@ agent_runtime:status_changed
 message:created
 command:created
 command:status_changed
+agent_stream:event
 log:line
 file_change:created
 screenshot:created

@@ -1,7 +1,7 @@
 {
-  "name": "AI 开发助手控制台",
-  "short_name": "AI 控制台",
-  "description": "本地优先的 AI 开发助手控制台",
+  "name": "NCC AI Development OS",
+  "short_name": "NCC AI OS",
+  "description": "本地优先的 AI 开发操作系统",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#f5f5f7",

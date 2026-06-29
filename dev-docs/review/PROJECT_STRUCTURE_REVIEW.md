@@ -163,7 +163,7 @@ apps/server/src/policies/
 
 | 当前命名 | 建议命名 | 优先级 | 说明 |
 | --- | --- | --- | --- |
-| `ai-agent-console` | `ncc-ai-os` | P1 | package/root 命名在下一次非功能迁移中调整，避免现在影响过多路径。 |
+| root package `ncc-ai-os` | keep | P0 | 根 package 已完成 NCC AI OS 命名；`@aic/*` workspace scope 后续再独立迁移。 |
 | `@aic/*` | `@ncc-ai-os/*` 或 `@ncc/os-*` | P2 | 代码包名后迁移，先不要阻塞架构改造。 |
 | `AI Agent Console` 文档标题 | `NCC AI Development OS` | P0 | 先改 active truth 和新增 review 文档。 |
 | `dashboard` 作为产品中心 | `operations` / `control plane` | P2 | 页面名可保留，但架构语义应是 operations center。 |

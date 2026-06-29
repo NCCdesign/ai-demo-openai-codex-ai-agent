@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentRuntimeResponse, AuthLoginResponse, CommandResponse, CommandsResponse, LogsResponse, Session } from "@aic/core";
+import type { AgentRuntimeResponse, AgentStreamEventsResponse, AuthLoginResponse, CommandResponse, CommandsResponse, LogsResponse, Session } from "@aic/core";
 
 const root = mkdtempSync(join(tmpdir(), "aic-server-check-"));
 process.env.AIC_DATABASE_PATH = join(root, "server.sqlite");
@@ -82,6 +82,22 @@ try {
     logsResponse.json<LogsResponse>().logs.map((log) => log.line).join("\n"),
     /received control command: Continue/
   );
+
+  const streamResponse = await app.fastify.inject({
+    method: "GET",
+    url: `/api/sessions/${session.id}/stream`,
+    headers: { authorization: `Bearer ${login.token}` }
+  });
+  assert.equal(streamResponse.statusCode, 200);
+  const stream = streamResponse.json<AgentStreamEventsResponse>();
+  assert.ok(stream.events.some((event) => event.type === "status_change" && event.payload.status === "running"));
+  assert.ok(stream.events.some((event) => event.type === "progress" && event.commandId === command.id));
+  assert.ok(
+    stream.events.some(
+      (event) => event.type === "token" && typeof event.payload.text === "string" && event.payload.text.includes("received control command: Continue")
+    )
+  );
+  assert.equal(stream.nextCursor, stream.events.at(-1)?.id ?? null);
 
   const messageResponse = await app.fastify.inject({
     method: "POST",

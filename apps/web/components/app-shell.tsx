@@ -15,7 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-black/10 bg-white/70 px-4 py-5 backdrop-blur-2xl dark:border-white/10 dark:bg-black/30 lg:block">
         <Link href="/dashboard" className="block px-3 text-lg font-semibold">
-          AI 开发助手控制台
+          NCC AI OS
         </Link>
         <nav className="mt-8 space-y-1">
           {navItems.map((item) => (

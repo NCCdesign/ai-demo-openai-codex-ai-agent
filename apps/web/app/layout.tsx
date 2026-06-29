@@ -4,8 +4,8 @@ import { QueryProvider } from "../components/query-provider";
 import { AppShell } from "../components/app-shell";
 
 export const metadata: Metadata = {
-  title: "AI 开发助手控制台",
-  description: "本地优先的 AI 开发助手控制台",
+  title: "NCC AI Development OS",
+  description: "本地优先的 AI 开发操作系统",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "AI 控制台"
+    title: "NCC AI OS"
   }
 };
 

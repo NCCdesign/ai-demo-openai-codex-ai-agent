@@ -78,7 +78,7 @@ export class SessionService {
     const adapter = this.agents.get(agent.type);
     await adapter.sendMessage(sessionId, content);
     this.updateSessionAndRuntimeStatus(sessionId, nextStatus);
-    return this.repo.appendLog({
+    return this.appendLog({
       sessionId,
       stream: "agent",
       level: "info",
@@ -88,12 +88,17 @@ export class SessionService {
 
   private persistAgentEvent(event: AgentRuntimeEvent): LogLine {
     this.runtimes?.heartbeat(event.sessionId);
-    const log = this.repo.appendLog({
+    const log = this.appendLog({
       sessionId: event.sessionId,
       stream: event.stream,
       level: event.level,
       line: event.line
     });
+    return log;
+  }
+
+  private appendLog(input: { sessionId: string; stream: LogLine["stream"]; level: LogLine["level"]; line: string }): LogLine {
+    const log = this.repo.appendLog(input);
     this.onLog?.(log);
     return log;
   }

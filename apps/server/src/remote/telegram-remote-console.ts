@@ -1,4 +1,4 @@
-import type { AgentRuntimeInstance, Command, LogLine } from "@aic/core";
+import { describeAgentStreamEvent, type AgentRuntimeInstance, type AgentStreamEvent, type Command, type LogLine } from "@aic/core";
 import type { RemoteConsoleService } from "../services/remote-console.service.js";
 
 export interface TelegramRemoteConsoleConfig {
@@ -102,6 +102,10 @@ export class TelegramRemoteConsole {
 
   async notifyLogLine(log: LogLine): Promise<void> {
     await this.broadcast(`Log ${log.sessionId}\n[${log.id}] ${log.stream}${log.level ? `/${log.level}` : ""}: ${log.line}`);
+  }
+
+  async notifyStreamEvent(event: AgentStreamEvent): Promise<void> {
+    await this.broadcast(`Stream ${event.sessionId}\n#${event.sequence} ${event.type}: ${describeAgentStreamEvent(event.type, event.payload)}`);
   }
 
   private async handleUpdate(update: TelegramUpdate): Promise<void> {

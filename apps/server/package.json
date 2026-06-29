@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "tsx src/services/auth.service.check.ts && tsx src/services/agent-runtime.service.check.ts && tsx src/services/command.service.check.ts && tsx src/services/remote-console.service.check.ts && tsx src/remote/telegram-remote-console.check.ts && tsx src/services/command-worker.check.ts && tsx src/server.check.ts",
+    "check": "tsx src/services/auth.service.check.ts && tsx src/services/agent-runtime.service.check.ts && tsx src/services/agent-stream.service.check.ts && tsx src/services/command.service.check.ts && tsx src/services/remote-console.service.check.ts && tsx src/remote/telegram-remote-console.check.ts && tsx src/services/command-worker.check.ts && tsx src/server.check.ts",
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

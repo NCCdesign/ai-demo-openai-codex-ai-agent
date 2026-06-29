@@ -39,6 +39,7 @@ Server/API:
 - Telegram Remote Console commands create Command Queue entries and do not directly call Agent adapters.
 - Telegram Remote Console rejects non-allowlisted chat IDs.
 - Telegram Remote Console receives outbound runtime status, command status, and log notifications without becoming the recovery source of truth.
+- Agent Stream events are persisted, replayable through REST, broadcast through Socket.IO, and selected stream types can be mirrored to Telegram without duplicating status/log notifications.
 - Socket handshake validates token.
 - Log write and replay works from persistence.
 
@@ -136,7 +137,8 @@ The current phase stops after the scaffold compiles, a core behavior check runs,
 - 2026-06-29: Legacy-compatible Chat message and Stop routes now create Command Queue entries instead of directly calling Agent adapters. Server smoke verifies `POST /api/sessions/:id/messages` creates and completes an `agent.continue` command, and `POST /api/sessions/:id/stop` creates and completes an `agent.stop` command. `pnpm check` passed; an initial parallel `pnpm check` + `pnpm build` run caused a transient `.next` build race, then sequential `pnpm build` passed.
 - 2026-06-29: Agent Runtime instance and heartbeat baseline added: core runtime status contract, SQLite `agent_runtime_instances`, server `AgentRuntimeService`, `GET /api/sessions/:id/runtime`, and `agent_runtime:status_changed` socket contract. Server checks verify runtime create/read/status sync and stop-to-cancelled transition.
 - 2026-06-29: Telegram Remote Console baseline added behind allowlisted long polling: `/status` and `/logs` read persisted runtime/log state, `/continue`, `/pause`, `/resume`, and `/stop` create queued commands with `source = telegram`, and fake-client checks verify unauthorized chats are rejected without calling Agent adapters.
-- 2026-06-29: Telegram outbound sync added for runtime status, command status, and log lines. Fake-client checks verify allowlisted chats receive outbound updates and disabled Telegram sends nothing. Streaming token/tool-call events are not yet implemented.
+- 2026-06-29: Telegram outbound sync added for runtime status, command status, and log lines. Fake-client checks verify allowlisted chats receive outbound updates and disabled Telegram sends nothing.
+- 2026-06-29: Structured Agent Stream baseline added: core event contract, SQLite `agent_stream_events`, `AgentStreamService`, `GET /api/sessions/:id/stream`, `agent_stream:event` Socket.IO event, and selected Telegram stream summaries for non-duplicated event types. Server smoke verifies command progress, runtime status, and control logs are replayable from the stream endpoint.
 
 ## Current Phase Acceptance
 
