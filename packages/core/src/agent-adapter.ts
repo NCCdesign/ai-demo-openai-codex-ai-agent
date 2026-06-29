@@ -27,6 +27,8 @@ export interface AgentAdapter {
   readonly type: string;
   start(input: StartAgentInput): Promise<AgentSessionHandle>;
   sendMessage(sessionId: string, message: string): Promise<void>;
+  pause(sessionId: string): Promise<void>;
+  resume(sessionId: string): Promise<void>;
   stop(sessionId: string): Promise<void>;
   getStatus(sessionId: string): Promise<AgentStatus>;
 }

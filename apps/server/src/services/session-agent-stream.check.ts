@@ -24,6 +24,10 @@ class StreamAgentAdapter implements AgentAdapter {
 
   async sendMessage(): Promise<void> {}
 
+  async pause(): Promise<void> {}
+
+  async resume(): Promise<void> {}
+
   async stop(): Promise<void> {}
 
   async getStatus(): Promise<AgentSessionHandle["status"]> {

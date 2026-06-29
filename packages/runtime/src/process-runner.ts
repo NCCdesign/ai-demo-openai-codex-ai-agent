@@ -14,6 +14,8 @@ export interface ProcessRunnerInput {
 export interface RunningProcess {
   child: ChildProcessWithoutNullStreams | null;
   stop: () => void;
+  pause: () => boolean;
+  resume: () => boolean;
   write: (input: string) => void;
 }
 
@@ -30,6 +32,8 @@ export function startProcess(input: ProcessRunnerInput): RunningProcess {
     return {
       child: null,
       stop: () => undefined,
+      pause: () => false,
+      resume: () => false,
       write: () => undefined
     };
   }
@@ -45,6 +49,9 @@ export function startProcess(input: ProcessRunnerInput): RunningProcess {
   return {
     child,
     stop: () => child.kill("SIGTERM"),
+    // ponytail: SIGSTOP/SIGCONT covers Unix process pause now; upgrade to a Windows job-object/process-tree strategy before claiming cross-platform hard pause.
+    pause: () => (process.platform === "win32" ? false : child.kill("SIGSTOP")),
+    resume: () => (process.platform === "win32" ? false : child.kill("SIGCONT")),
     write: (value) => child.stdin.write(value)
   };
 }

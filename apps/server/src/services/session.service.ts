@@ -88,6 +88,34 @@ export class SessionService {
     });
   }
 
+  async pauseSession(sessionId: string): Promise<LogLine> {
+    const session = this.requireSession(sessionId);
+    const agent = this.requireAgent(session.agentId);
+    const adapter = this.agents.get(agent.type);
+    await adapter.pause(sessionId);
+    this.updateSessionAndRuntimeStatus(sessionId, "waiting_for_user");
+    return this.appendLog({
+      sessionId,
+      stream: "agent",
+      level: "info",
+      line: `${agent.name} paused`
+    });
+  }
+
+  async resumeSession(sessionId: string): Promise<LogLine> {
+    const session = this.requireSession(sessionId);
+    const agent = this.requireAgent(session.agentId);
+    const adapter = this.agents.get(agent.type);
+    await adapter.resume(sessionId);
+    this.updateSessionAndRuntimeStatus(sessionId, "running");
+    return this.appendLog({
+      sessionId,
+      stream: "agent",
+      level: "info",
+      line: `${agent.name} resumed`
+    });
+  }
+
   private persistAgentEvent(event: AgentRuntimeEvent): LogLine {
     this.runtimes?.heartbeat(event.sessionId);
     const log = this.appendLog({

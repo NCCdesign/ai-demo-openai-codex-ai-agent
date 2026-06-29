@@ -136,7 +136,7 @@ Request:
 }
 ```
 
-This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel`, then emits `command:status_changed`. Reserved command types without handlers fail explicitly instead of pretending to run.
+This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel`, then emits `command:status_changed`. `agent.pause` and `agent.resume` use provider-neutral Adapter SPI methods, not text prompts sent through `sendMessage`. Reserved command types without handlers fail explicitly instead of pretending to run.
 
 Command responses include the execution audit fields needed for remote operation:
 

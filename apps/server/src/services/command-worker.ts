@@ -74,11 +74,11 @@ export class CommandWorker {
       return { delivered: true };
     }
     if (command.type === "agent.pause") {
-      await this.sessions.sendAgentControl(command.sessionId, commandText(command, "Pause"), "waiting_for_user");
+      await this.sessions.pauseSession(command.sessionId);
       return { delivered: true };
     }
     if (command.type === "agent.resume") {
-      await this.sessions.sendAgentControl(command.sessionId, commandText(command, "Resume"), "running");
+      await this.sessions.resumeSession(command.sessionId);
       return { delivered: true };
     }
     if (command.type === "agent.stop" || command.type === "agent.cancel") {

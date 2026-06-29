@@ -16,6 +16,14 @@ export class NoopAgentAdapter implements AgentAdapter {
     this.statuses.set(sessionId, "waiting_for_user");
   }
 
+  async pause(sessionId: string): Promise<void> {
+    this.statuses.set(sessionId, "waiting_for_user");
+  }
+
+  async resume(sessionId: string): Promise<void> {
+    this.statuses.set(sessionId, "running");
+  }
+
   async stop(sessionId: string): Promise<void> {
     this.statuses.set(sessionId, "stopped");
   }
@@ -24,4 +32,3 @@ export class NoopAgentAdapter implements AgentAdapter {
     return this.statuses.get(sessionId) ?? "idle";
   }
 }
-

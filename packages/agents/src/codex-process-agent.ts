@@ -72,6 +72,24 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
     session.process.write(`${message}\n`);
   }
 
+  async pause(sessionId: string): Promise<void> {
+    const session = this.requireRunningSession(sessionId);
+    const paused = session.process.pause();
+    if (!paused) {
+      throw new Error("Codex process pause is not supported on this platform yet.");
+    }
+    session.status = "waiting_for_user";
+  }
+
+  async resume(sessionId: string): Promise<void> {
+    const session = this.requireRunningSession(sessionId);
+    const resumed = session.process.resume();
+    if (!resumed) {
+      throw new Error("Codex process resume is not supported on this platform yet.");
+    }
+    session.status = "running";
+  }
+
   async stop(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -84,6 +102,14 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
 
   async getStatus(sessionId: string): Promise<AgentStatus> {
     return this.sessions.get(sessionId)?.status ?? "idle";
+  }
+
+  private requireRunningSession(sessionId: string): { process: RunningProcess; status: AgentStatus; stopping: boolean } {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Codex session is not running: ${sessionId}`);
+    }
+    return session;
   }
 }
 

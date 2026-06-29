@@ -156,7 +156,7 @@ Web / API / Telegram Remote Console command input
   -> Socket.IO broadcasts command/status/log updates
 ```
 
-`agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel` now execute through the server-side command worker. `agent.screenshot`, `workspace.test.run`, and `workspace.deploy.run` are reserved command types and fail explicitly until their handlers are implemented. HTTP routes must not bypass the queue for new control actions.
+`agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel` now execute through the server-side command worker. `agent.pause` and `agent.resume` call explicit `AgentAdapter.pause/resume` methods; they must not be implemented as magic text sent through `sendMessage`. `agent.screenshot`, `workspace.test.run`, and `workspace.deploy.run` are reserved command types and fail explicitly until their handlers are implemented. HTTP routes must not bypass the queue for new control actions.
 
 The `commands` row is the current execution audit record. It carries `task_id`, normalized `command_text`, `tool_name`, `started_at`, `completed_at`, `duration_ms`, retry/error fields, and `exit_code` when available. This keeps Telegram and mobile recovery views tied to persisted truth instead of transient worker memory. A future `command_attempts` table may be added when real multi-attempt retry semantics are implemented.
 
@@ -204,6 +204,8 @@ idle | planning | running | waiting | tool_calling | completed | failed | cancel
 ```
 
 The current heartbeat is a local-daemon liveness baseline, not full process recovery. Recovery policy is persisted as `manual` until the supervisor/restart decision is implemented. On daemon start, `AgentRuntimeService` reconciles stale active runtime rows whose heartbeat is older than the configured threshold by marking them `failed` with a manual-recovery error. This prevents mobile and Telegram clients from seeing ghost running sessions after a daemon restart. Telegram, Web, and future plugins must read runtime status through API/socket contracts and must not inspect adapter memory.
+
+The Codex process adapter now exposes explicit pause/resume controls through the shared Adapter SPI. On Unix-like hosts this uses `SIGSTOP`/`SIGCONT` through `packages/runtime`; on Windows the process runner currently returns a structured unsupported result, so the command fails instead of pretending the process paused. A Windows-safe process-tree pause/resume strategy or Codex-native `exec resume` lifecycle is still required before claiming full live Codex pause/resume readiness on Windows.
 
 Agent Stream events:
 
