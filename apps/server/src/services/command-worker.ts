@@ -81,6 +81,10 @@ export class CommandWorker {
       await this.sessions.resumeSession(command.sessionId);
       return { delivered: true };
     }
+    if (command.type === "agent.restart") {
+      const session = await this.sessions.restartSession(command.sessionId);
+      return { delivered: true, sessionStatus: session.status };
+    }
     if (command.type === "agent.stop" || command.type === "agent.cancel") {
       await this.sessions.stopSession(command.sessionId);
       return { delivered: true };

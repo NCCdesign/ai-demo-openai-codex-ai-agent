@@ -9,14 +9,16 @@ import { CommandService } from "./command.service.js";
 import { CommandWorker } from "./command-worker.js";
 import { SessionService } from "./session.service.js";
 import { AgentRegistry } from "@aic/agents";
+import { AgentRuntimeService } from "./agent-runtime.service.js";
 
 class ControlRecordingAgentAdapter implements AgentAdapter {
   readonly type = "noop";
   readonly calls: string[] = [];
+  private nextPid = 1000;
 
   async start(input: StartAgentInput): Promise<AgentSessionHandle> {
     this.calls.push("start");
-    return { sessionId: input.sessionId, status: "waiting_for_user" };
+    return { sessionId: input.sessionId, status: "waiting_for_user", pid: this.nextPid++ };
   }
 
   async sendMessage(): Promise<void> {
@@ -52,7 +54,8 @@ try {
     workspacePath: root
   });
   const adapter = new ControlRecordingAgentAdapter();
-  const sessions = new SessionService(repo, new AgentRegistry([adapter]));
+  const runtimes = new AgentRuntimeService(repo);
+  const sessions = new SessionService(repo, new AgentRegistry([adapter]), runtimes);
   const commands = new CommandService(repo);
   const worker = new CommandWorker(repo, sessions);
   const session = await sessions.createSession({
@@ -89,6 +92,30 @@ try {
   assert.equal(repo.findCommand(screenshot.id)?.status, "failed");
   assert.match(repo.findCommand(screenshot.id)?.errorMessage ?? "", /not implemented/);
   assert.equal(repo.findCommand(screenshot.id)?.exitCode, 1);
+
+  repo.updateSessionStatus(session.id, "failed", "previous failure");
+  const failedRuntime = repo.updateAgentRuntimeStatus(session.id, "failed", {
+    pid: null,
+    lastError: "previous failure"
+  });
+  assert.ok(repo.findSession(session.id)?.endedAt);
+  assert.ok(failedRuntime?.stoppedAt);
+
+  const restart = commands.createCommand({ type: "agent.restart", sessionId: session.id, source: "api", userId: "usr_admin" });
+  await worker.processQueued();
+  const completedRestart = repo.findCommand(restart.id);
+  assert.equal(completedRestart?.status, "completed");
+  assert.deepEqual(adapter.calls, ["start", "pause", "resume", "stop", "stop", "start"]);
+  const restartedSession = repo.findSession(session.id);
+  assert.equal(restartedSession?.status, "waiting_for_user");
+  assert.equal(restartedSession?.lastError, null);
+  assert.equal(restartedSession?.endedAt, null);
+  const restartedRuntime = repo.findAgentRuntimeBySession(session.id);
+  assert.equal(restartedRuntime?.status, "waiting");
+  assert.equal(restartedRuntime?.lastError, null);
+  assert.equal(restartedRuntime?.stoppedAt, null);
+  assert.equal(restartedRuntime?.pid, 1001);
+  assert.match(repo.exportLogsText(session.id), /restarting/);
 
   console.log("command worker check passed");
 } finally {

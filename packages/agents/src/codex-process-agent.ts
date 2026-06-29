@@ -19,7 +19,8 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
     const args = this.options.args ?? parseArgs(process.env.AIC_CODEX_ARGS);
 
     let currentStatus: AgentStatus = "starting";
-    const running = (this.options.startProcess ?? startProcess)({
+    let running: RunningProcess;
+    running = (this.options.startProcess ?? startProcess)({
       command,
       args,
       cwd: input.workspacePath,
@@ -34,18 +35,19 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       onError: (error) => {
         currentStatus = "failed";
         const session = this.sessions.get(input.sessionId);
-        if (session) {
+        if (session?.process === running) {
           session.status = currentStatus;
+          input.onStatus?.("failed");
+          input.onEvent?.(event(input.sessionId, "system", "error", `Codex process error: ${error.message}`));
         }
-        input.onStatus?.("failed");
-        input.onEvent?.(event(input.sessionId, "system", "error", `Codex process error: ${error.message}`));
       },
       onExit: (code, signal) => {
         const session = this.sessions.get(input.sessionId);
-        const status: AgentStatus = session?.stopping ? "stopped" : code === 0 ? "completed" : "failed";
-        if (session) {
-          session.status = status;
+        if (session?.process !== running) {
+          return;
         }
+        const status: AgentStatus = session?.stopping ? "stopped" : code === 0 ? "completed" : "failed";
+        session.status = status;
         input.onStatus?.(status);
         input.onEvent?.(event(input.sessionId, "system", code === 0 ? "info" : "error", `Codex process exited with code ${code ?? "null"} signal ${signal ?? "null"}`));
       }
@@ -69,7 +71,8 @@ export class CodexProcessAgentAdapter implements AgentAdapter {
       return {
         sessionId: input.sessionId,
         status: currentStatus,
-        pid: null
+        pid: null,
+        lastError: `Codex process unavailable: ${message}`
       };
     }
 

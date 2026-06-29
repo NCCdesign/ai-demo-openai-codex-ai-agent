@@ -180,15 +180,15 @@ export class ConsoleRepository {
     return session;
   }
 
-  updateSessionStatus(sessionId: string, status: SessionStatus, lastError: string | null = null): void {
+  updateSessionStatus(sessionId: string, status: SessionStatus, lastError?: string | null): void {
     const endedAt = ["stopped", "failed", "completed"].includes(status) ? now() : null;
     this.db
       .prepare(
         `update sessions
-         set status = ?, last_error = coalesce(?, last_error), ended_at = coalesce(?, ended_at)
+         set status = ?, last_error = ?, ended_at = ?
          where id = ?`
       )
-      .run(status, lastError, endedAt, sessionId);
+      .run(status, lastError === undefined ? this.findSession(sessionId)?.lastError ?? null : lastError, endedAt, sessionId);
   }
 
   createAgentRuntimeInstance(input: {
@@ -287,7 +287,7 @@ export class ConsoleRepository {
       return null;
     }
     const updatedAt = now();
-    const stoppedAt = ["completed", "failed", "cancelled"].includes(status) ? current.stoppedAt ?? updatedAt : current.stoppedAt;
+    const stoppedAt = ["completed", "failed", "cancelled"].includes(status) ? current.stoppedAt ?? updatedAt : null;
     this.db
       .prepare(
         `update agent_runtime_instances

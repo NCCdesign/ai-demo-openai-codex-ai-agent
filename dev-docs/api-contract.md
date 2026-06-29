@@ -91,7 +91,7 @@ token | tool_call | tool_result | progress | error | status_change
 
 The current server emits `status_change` from runtime status, `progress` from command lifecycle, and `token`/`error` from persisted logs. Agent adapters may also emit provider-native stream drafts through the core Adapter SPI. The Codex process adapter maps JSONL stdout, such as `codex exec --json`, into stream events. `tool_call` and `tool_result` are reserved for concrete provider/tool events and must not be inferred from runtime status alone.
 
-Session restart is reserved for a later lifecycle policy. MVP supports creating a new session and stopping an existing one.
+Session restart is command-backed. API clients must enqueue `agent.restart` through `POST /api/commands`; there is no direct restart route. Restart keeps the same logical Session and durable stream/log history, stops the provider handle, starts it again from the persisted workspace/agent identity, clears stale terminal timestamps/errors on success, and updates the Runtime row with the new status/pid.
 
 ## Commands
 
@@ -136,7 +136,7 @@ Request:
 }
 ```
 
-This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, and `agent.cancel`, then emits `command:status_changed`. `agent.pause` and `agent.resume` use provider-neutral Adapter SPI methods, not text prompts sent through `sendMessage`. Reserved command types without handlers fail explicitly instead of pretending to run.
+This API persists queued commands and emits `command:created`. The server-side command worker executes `agent.continue`, `agent.pause`, `agent.resume`, `agent.stop`, `agent.cancel`, and `agent.restart`, then emits `command:status_changed`. `agent.pause` and `agent.resume` use provider-neutral Adapter SPI methods, not text prompts sent through `sendMessage`. `agent.restart` restarts the same logical Session rather than creating a new conversation. Reserved command types without handlers fail explicitly instead of pretending to run.
 
 Command responses include the execution audit fields needed for remote operation:
 

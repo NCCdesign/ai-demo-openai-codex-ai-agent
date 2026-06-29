@@ -45,7 +45,7 @@ export class SessionService {
         onStreamEvent: (event) => this.persistAgentStreamEvent(session.id, event),
         onStatus: (status) => this.updateSessionAndRuntimeStatus(session.id, status)
       });
-      this.updateSessionAndRuntimeStatus(session.id, handle.status, { pid: handle.pid ?? null });
+      this.updateSessionAndRuntimeStatus(session.id, handle.status, { pid: handle.pid ?? null, lastError: handle.lastError });
       return { ...session, status: handle.status };
     } catch (error) {
       this.updateSessionAndRuntimeStatus(session.id, "failed", {
@@ -72,6 +72,41 @@ export class SessionService {
     const adapter = this.agents.get(agent.type);
     await adapter.stop(sessionId);
     this.updateSessionAndRuntimeStatus(sessionId, "stopped");
+  }
+
+  async restartSession(sessionId: string): Promise<Session> {
+    const session = this.requireSession(sessionId);
+    const agent = this.requireAgent(session.agentId);
+    const workspace = this.requireWorkspace(session.workspaceId);
+    const adapter = this.agents.get(agent.type);
+    await adapter.stop(sessionId);
+    this.updateSessionAndRuntimeStatus(sessionId, "starting", { pid: null, lastError: null });
+    this.appendLog({
+      sessionId,
+      stream: "system",
+      level: "info",
+      line: `${agent.name} restarting`
+    });
+    try {
+      const handle = await adapter.start({
+        sessionId,
+        workspacePath: workspace.path,
+        onEvent: (event) => this.persistAgentEvent(event),
+        onStreamEvent: (event) => this.persistAgentStreamEvent(session.id, event),
+        onStatus: (status) => this.updateSessionAndRuntimeStatus(session.id, status)
+      });
+      this.updateSessionAndRuntimeStatus(session.id, handle.status, {
+        pid: handle.pid ?? null,
+        lastError: handle.lastError ?? (handle.status === "failed" ? undefined : null)
+      });
+      return this.requireSession(session.id);
+    } catch (error) {
+      this.updateSessionAndRuntimeStatus(session.id, "failed", {
+        pid: null,
+        lastError: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
   }
 
   async sendAgentControl(sessionId: string, content: string, nextStatus: SessionStatus): Promise<LogLine> {
@@ -138,7 +173,7 @@ export class SessionService {
   }
 
   private updateSessionAndRuntimeStatus(sessionId: string, status: SessionStatus, input: { pid?: number | null; lastError?: string | null } = {}): void {
-    this.repo.updateSessionStatus(sessionId, status, input.lastError ?? null);
+    this.repo.updateSessionStatus(sessionId, status, input.lastError);
     this.runtimes?.syncSessionStatus(sessionId, status, input);
   }
 
@@ -156,5 +191,13 @@ export class SessionService {
       throw new Error(`Agent does not exist or is disabled: ${agentId}`);
     }
     return agent;
+  }
+
+  private requireWorkspace(workspaceId: string) {
+    const workspace = this.repo.findWorkspace(workspaceId);
+    if (!workspace) {
+      throw new Error(`Workspace does not exist: ${workspaceId}`);
+    }
+    return workspace;
   }
 }

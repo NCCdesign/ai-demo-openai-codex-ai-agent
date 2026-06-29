@@ -21,6 +21,7 @@ export interface AgentSessionHandle {
   sessionId: string;
   status: AgentStatus;
   pid?: number | null;
+  lastError?: string | null;
 }
 
 export interface AgentAdapter {

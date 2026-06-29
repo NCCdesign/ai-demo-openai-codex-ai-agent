@@ -105,7 +105,7 @@ Runtime status values are provider-neutral:
 idle | planning | running | waiting | tool_calling | completed | failed | cancelled
 ```
 
-`heartbeatAt` is updated by the local daemon while the runtime is active. On server start, stale active runtime rows are marked `failed` with a manual-recovery error instead of staying as ghost running sessions. This is the baseline for future recovery and Telegram status views; full process restart/recovery is not implemented yet.
+`heartbeatAt` is updated by the local daemon while the runtime is active. On server start, stale active runtime rows are marked `failed` with a manual-recovery error instead of staying as ghost running sessions. Operators can enqueue `agent.restart` through the Command Queue to restart the same logical session from persisted workspace/agent identity. Full unattended supervisor auto-restart is not implemented yet.
 
 ## Agent Stream Replay
 
@@ -138,7 +138,7 @@ Supported commands:
 /stop
 ```
 
-`/continue`, `/pause`, `/resume`, and `/stop` create Command Queue entries with `source = telegram`; Telegram does not directly control Agent Runtime.
+`/continue`, `/pause`, `/resume`, and `/stop` create Command Queue entries with `source = telegram`; Telegram does not directly control Agent Runtime. `agent.restart` is currently available through the REST Command Queue and can be wired to Telegram once an operator-facing command name is chosen.
 
 When enabled, Telegram also receives outbound notifications for:
 

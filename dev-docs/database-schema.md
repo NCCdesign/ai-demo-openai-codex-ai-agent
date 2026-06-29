@@ -244,6 +244,8 @@ none | manual | restart
 
 `agent_runtime_instances.session_id` is unique. The runtime row is the durable source for remote status views and recovery preparation; adapter in-memory handles are not recovery truth.
 
+`agent.restart` reuses the same `sessions.id` and `agent_runtime_instances.session_id`. A successful restart clears stale `sessions.ended_at`, `sessions.last_error`, `agent_runtime_instances.stopped_at`, and `agent_runtime_instances.last_error`, then stores the new runtime status and `pid`. A failed restart leaves the session/runtime in `failed` with the latest error reason.
+
 Agent Stream event:
 
 ```text

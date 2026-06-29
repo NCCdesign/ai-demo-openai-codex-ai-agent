@@ -52,7 +52,7 @@ class FailingStartAgentAdapter implements AgentAdapter {
       type: "error",
       payload: { message: "Codex process unavailable: Access is denied" }
     });
-    return { sessionId: input.sessionId, status: "failed", pid: null };
+    return { sessionId: input.sessionId, status: "failed", pid: null, lastError: "Codex process unavailable: Access is denied" };
   }
 
   async sendMessage(): Promise<void> {}
@@ -108,7 +108,9 @@ try {
   });
   assert.equal(failedSession.status, "failed");
   assert.equal(repo.findSession(failedSession.id)?.status, "failed");
+  assert.match(repo.findSession(failedSession.id)?.lastError ?? "", /Access is denied/);
   assert.equal(runtimes.findBySession(failedSession.id)?.status, "failed");
+  assert.match(runtimes.findBySession(failedSession.id)?.lastError ?? "", /Access is denied/);
   assert.equal(streams.list({ sessionId: failedSession.id }).events.at(-1)?.type, "error");
 
   console.log("session agent stream check passed");

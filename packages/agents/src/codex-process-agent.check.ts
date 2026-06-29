@@ -32,6 +32,7 @@ try {
 
   assert.equal(handle.status, "failed");
   assert.equal(handle.pid, null);
+  assert.match(handle.lastError ?? "", /Access is denied/);
   assert.deepEqual(statuses, ["failed"]);
   assert.match(events.join("\n"), /Codex process unavailable/);
   assert.match(streamEvents.join("\n"), /error: Codex process unavailable/);
